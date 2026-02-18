@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     MeView, TokenStatusView, RefreshTokenView,
-    MyProductsView, MyOrdersView, ProductAdsView,
+    MyProductsView, MyOrdersView, ProductAdsView, DebugEnvView,
 )
 
 urlpatterns = [
@@ -12,4 +12,5 @@ urlpatterns = [
     path('productads', ProductAdsView.as_view(), name='productads'),
     path('token/status', TokenStatusView.as_view(), name='token-status'),
     path('token/refresh', RefreshTokenView.as_view(), name='token-refresh'),
+    path('debug/env', DebugEnvView.as_view(), name='debug-env'),
 ]

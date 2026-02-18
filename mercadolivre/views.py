@@ -200,6 +200,47 @@ class MyOrdersView(APIView):
             )
 
 
+class DebugEnvView(APIView):
+    """
+    GET /debug/env
+    Mostra quais variaveis de ambiente estao configuradas (sem expor valores).
+    Util para diagnosticar problemas no deploy.
+    """
+
+    def get(self, request):
+        import os
+        from django.conf import settings as s
+
+        checks = {
+            'SUPABASE_URL': bool(s.SUPABASE_URL),
+            'SUPABASE_KEY': bool(s.SUPABASE_KEY),
+            'ML_APP_ID': bool(s.ML_APP_ID),
+            'ML_SECRET_KEY': bool(s.ML_SECRET_KEY),
+            'ML_REDIRECT_URI': bool(s.ML_REDIRECT_URI),
+            'DEBUG': s.DEBUG,
+        }
+
+        # Testa conexao Supabase
+        supabase_ok = False
+        supabase_error = None
+        token_found = False
+        try:
+            from .supabase_client import get_supabase_client
+            sb = get_supabase_client()
+            supabase_ok = True
+            result = sb.table('mercadolivre_tokens').select('user_id').limit(1).execute()
+            token_found = bool(result.data)
+        except Exception as e:
+            supabase_error = str(e)
+
+        return Response({
+            'env_vars_configuradas': checks,
+            'supabase_conectado': supabase_ok,
+            'supabase_erro': supabase_error,
+            'token_no_banco': token_found,
+        })
+
+
 class ProductAdsView(APIView):
     """
     GET /productads?period=30
