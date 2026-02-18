@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: riffel
+    runtime: python
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: gunicorn core.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.13.0"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: ML_APP_ID
+        sync: false
+      - key: ML_SECRET_KEY
+        sync: false
+      - key: ML_REDIRECT_URI
+        sync: false
