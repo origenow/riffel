@@ -51,5 +51,7 @@ class MercadolivreConfig(AppConfig):
 
             logger.info('=' * 50)
 
+        except RuntimeError as e:
+            logger.warning(f'Supabase nao configurado - pulando verificacao de token: {e}')
         except Exception as e:
             logger.error(f'Erro ao verificar token no startup: {e}')

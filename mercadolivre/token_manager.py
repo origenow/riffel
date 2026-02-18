@@ -17,14 +17,34 @@ TABLE_NAME = 'mercadolivre_tokens'
 
 
 class TokenManager:
-    """Gerencia tokens de acesso do Mercado Livre no Supabase."""
+    """Gerencia tokens de acesso do Mercado Livre no Supabase.
+    Inicializacao lazy - so conecta ao Supabase quando necessario."""
 
     def __init__(self):
-        self.supabase = get_supabase_client()
-        self.app_id = settings.ML_APP_ID
-        self.secret_key = settings.ML_SECRET_KEY
-        self.redirect_uri = settings.ML_REDIRECT_URI
-        self.api_base = settings.ML_API_BASE
+        self._supabase = None
+
+    @property
+    def supabase(self):
+        """Conexao lazy com Supabase - so inicializa no primeiro uso."""
+        if self._supabase is None:
+            self._supabase = get_supabase_client()
+        return self._supabase
+
+    @property
+    def app_id(self):
+        return settings.ML_APP_ID
+
+    @property
+    def secret_key(self):
+        return settings.ML_SECRET_KEY
+
+    @property
+    def redirect_uri(self):
+        return settings.ML_REDIRECT_URI
+
+    @property
+    def api_base(self):
+        return settings.ML_API_BASE
 
     def get_token(self, user_id: int = None) -> dict | None:
         """
