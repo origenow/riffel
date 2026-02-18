@@ -4,8 +4,10 @@ from .views import (
     MeView, TokenStatusView, RefreshTokenView,
     MyProductsView, MyOrdersView, ProductAdsView, DebugEnvView,
 )
+from .docs_view import docs_view
 
 urlpatterns = [
+    path('docs', docs_view, name='docs'),
     path('me', MeView.as_view(), name='mercadolivre-me'),
     path('myproducts', MyProductsView.as_view(), name='myproducts'),
     path('myorders', MyOrdersView.as_view(), name='myorders'),
