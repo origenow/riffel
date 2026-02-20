@@ -7,17 +7,17 @@ from datetime import datetime, timedelta
 
 import requests as http_requests
 from django.conf import settings
-from django.http import StreamingHttpResponse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from asgiref.sync import async_to_sync
 
 from .ml_api import ml_api
 from .ml_api_async import ml_api_async
 from .token_manager import token_manager
-from .orders_service import sync_stream_orders
 from .products_sync import get_cached_products, get_sync_status, run_sync
+from .orders_sync import (
+    get_cached_orders, get_orders_sync_status, run_orders_sync,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -210,25 +210,57 @@ class SyncProductsView(APIView):
 class MyOrdersView(APIView):
     """
     GET /myorders
-    Streaming de JSON com os pedidos do Mercado Livre.
-    Os dados vao chegando dinamicamente conforme sao processados em lotes.
-    Resposta no mesmo formato do meli_vendas_detalhadas.json.
+    Retorna os pedidos do cache Supabase (atualizado a cada 1h em background).
+    Formato identico ao meli_vendas_detalhadas.json.
     """
 
     def get(self, request):
         try:
-            logger.info('Iniciando streaming de pedidos...')
+            logger.info('Buscando pedidos do cache Supabase...')
 
-            response = StreamingHttpResponse(
-                sync_stream_orders(),
-                content_type='application/json; charset=utf-8',
-            )
-            response['Cache-Control'] = 'no-cache'
-            response['X-Accel-Buffering'] = 'no'
-            return response
+            result = get_cached_orders()
+
+            # Se o cache está vazio, faz um sync imediato
+            if not result.get('vendas_detalhadas'):
+                logger.info('Cache de pedidos vazio — executando sync imediato...')
+                run_orders_sync()
+                result = get_cached_orders()
+
+            # Adiciona info do ultimo sync
+            sync_info = get_orders_sync_status()
+            result['ultimo_sync'] = sync_info.get('last_sync_at') if sync_info else None
+            result['sync_status'] = sync_info.get('status') if sync_info else None
+
+            logger.info(f'Retornando {result["total_linhas"]} linhas do cache.')
+
+            return Response(result, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.error(f'Erro ao iniciar streaming de pedidos: {e}')
+            logger.error(f'Erro ao buscar pedidos: {e}')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class SyncOrdersView(APIView):
+    """
+    POST /myorders/sync
+    Forca uma sincronizacao imediata dos pedidos (ML -> Supabase).
+    """
+
+    def post(self, request):
+        try:
+            logger.info('Sync manual de pedidos solicitado...')
+            run_orders_sync()
+            sync_info = get_orders_sync_status()
+            return Response({
+                'message': 'Sincronizacao de pedidos concluida!',
+                'total_items': sync_info.get('total_items', 0),
+                'last_sync_at': sync_info.get('last_sync_at'),
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Erro no sync manual de pedidos: {e}')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

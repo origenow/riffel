@@ -2,7 +2,8 @@ from django.urls import path
 
 from .views import (
     MeView, TokenStatusView, RefreshTokenView,
-    MyProductsView, SyncProductsView, MyOrdersView,
+    MyProductsView, SyncProductsView,
+    MyOrdersView, SyncOrdersView,
     ProductAdsView, DebugEnvView,
 )
 from .docs_view import docs_view
@@ -13,6 +14,7 @@ urlpatterns = [
     path('myproducts', MyProductsView.as_view(), name='myproducts'),
     path('myproducts/sync', SyncProductsView.as_view(), name='myproducts-sync'),
     path('myorders', MyOrdersView.as_view(), name='myorders'),
+    path('myorders/sync', SyncOrdersView.as_view(), name='myorders-sync'),
     path('productads', ProductAdsView.as_view(), name='productads'),
     path('token/status', TokenStatusView.as_view(), name='token-status'),
     path('token/refresh', RefreshTokenView.as_view(), name='token-refresh'),

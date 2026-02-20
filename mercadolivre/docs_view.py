@@ -180,6 +180,7 @@ DOCS_HTML = """<!DOCTYPE html>
 
   <div class="nav-section">Pedidos</div>
   <a class="nav-item" href="#myorders"><span class="badge badge-get">GET</span> /myorders</a>
+  <a class="nav-item" href="#myorders-sync"><span class="badge badge-post">POST</span> /myorders/sync</a>
 
   <div class="nav-section">Anúncios</div>
   <a class="nav-item" href="#productads"><span class="badge badge-get">GET</span> /productads</a>
@@ -351,20 +352,15 @@ DOCS_HTML = """<!DOCTYPE html>
     </div>
     <div class="endpoint-body">
       <div class="endpoint-body-inner">
-        <p class="desc">Retorna todos os pedidos do seller via <strong style="color:var(--accent-light)">JSON Streaming</strong>. Os dados chegam dinamicamente conforme são processados — os primeiros resultados aparecem em segundos enquanto o restante carrega em paralelo. Inclui conciliação financeira completa: preço bruto, taxas ML, frete seller, descontos e valor líquido por pedido.</p>
+        <p class="desc">Retorna os pedidos do <strong style="color:var(--accent-light)">cache Supabase</strong> (atualizado automaticamente a cada 1 hora em background). Zero chamadas ao ML API = <strong style="color:var(--get)">uso mínimo de RAM</strong>. Inclui conciliação financeira completa: preço bruto, taxas ML, frete seller, descontos e valor líquido por pedido. Se o cache estiver vazio, executa sync imediato na primeira chamada.</p>
 
         <div class="params-title">Parâmetros</div>
-        <table>
-          <tr><th>Nome</th><th>Tipo</th><th>Padrão</th><th>Descrição</th></tr>
-          <tr><td>Nenhum</td><td>—</td><td>—</td><td>Busca todos os pedidos desde 2018.</td></tr>
-        </table>
+        <p style="color:var(--text-muted);font-size:.84rem">Nenhum parâmetro necessário.</p>
 
-        <div class="params-title">⚡ Como funciona o Streaming</div>
-        <p class="desc">A resposta abre imediatamente com <code style="font-family:monospace;background:rgba(0,0,0,.3);padding:2px 5px;border-radius:3px">Content-Type: application/json</code> e vai enviando cada item de <code style="font-family:monospace;background:rgba(0,0,0,.3);padding:2px 5px;border-radius:3px">vendas_detalhadas</code> conforme processa. O resumo financeiro aparece ao final.</p>
-
+        <br/>
         <div class="response-block">
           <div class="params-title">Resposta</div>
-          <div class="res-header"><span class="status-badge s200">200 OK</span> <span style="color:var(--text-muted);font-size:.78rem">application/json (streaming)</span></div>
+          <div class="res-header"><span class="status-badge s200">200 OK</span></div>
           <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>{
   "vendas_detalhadas": [
     {
@@ -388,7 +384,36 @@ DOCS_HTML = """<!DOCTYPE html>
     "frete_seller_total": 0.00,
     "descontos_total": 120.00,
     "liquido_total": 242495.93
-  }
+  },
+  "ultimo_sync": "2026-02-20T14:30:00+00:00",
+  "sync_status": "completed"
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep-myorders-sync" style="margin-top:12px">
+    <div class="endpoint-header" onclick="toggle('ep-myorders-sync')">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/myorders/sync</span>
+      <span class="endpoint-summary">Força sync imediato dos pedidos</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="endpoint-body">
+      <div class="endpoint-body-inner">
+        <p class="desc">Força uma sincronização imediata dos pedidos do Mercado Livre para o Supabase. Normalmente não é necessário — o sync automático roda a cada 1 hora em background.</p>
+
+        <div class="params-title">Body</div>
+        <p style="color:var(--text-muted);font-size:.84rem">Nenhum body necessário.</p>
+
+        <br/>
+        <div class="response-block">
+          <div class="res-header"><span class="status-badge s200">200 OK</span></div>
+          <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>{
+  "message": "Sincronizacao de pedidos concluida!",
+  "total_items": 1634,
+  "last_sync_at": "2026-02-20T14:30:00+00:00"
 }</pre>
         </div>
       </div>
@@ -589,7 +614,7 @@ GET /productads?period=90 → últimos 90 dias</pre>
 
   // Highlight nav item on scroll
   const navItems = document.querySelectorAll('.nav-item');
-  const sections = ['me','myproducts','myproducts-sync','myorders','productads','token-status','token-refresh','debug-env'];
+  const sections = ['me','myproducts','myproducts-sync','myorders','myorders-sync','productads','token-status','token-refresh','debug-env'];
 
   window.addEventListener('scroll', () => {
     let current = '';

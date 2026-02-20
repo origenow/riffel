@@ -28,6 +28,9 @@ class MercadolivreConfig(AppConfig):
         # Thread de sync de produtos (a cada 1h)
         self._start_products_sync()
 
+        # Thread de sync de pedidos (a cada 1h)
+        self._start_orders_sync()
+
     def _start_products_sync(self):
         """Inicia a thread de sincronização de produtos em background."""
         try:
@@ -35,6 +38,14 @@ class MercadolivreConfig(AppConfig):
             start_background_sync()
         except Exception as e:
             logger.error(f'Erro ao iniciar sync de produtos: {e}')
+
+    def _start_orders_sync(self):
+        """Inicia a thread de sincronização de pedidos em background."""
+        try:
+            from .orders_sync import start_orders_background_sync
+            start_orders_background_sync()
+        except Exception as e:
+            logger.error(f'Erro ao iniciar sync de pedidos: {e}')
 
     def _startup_token_check(self):
         """Verifica e faz refresh do token ao iniciar a aplicação."""
