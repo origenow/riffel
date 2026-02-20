@@ -1,4 +1,5 @@
 import logging
+import os
 import threading
 
 from django.apps import AppConfig
@@ -12,16 +13,28 @@ class MercadolivreConfig(AppConfig):
 
     def ready(self):
         """
-        Quando a aplicação inicia, verifica se o token precisa de refresh
-        e faz automaticamente em background.
+        Quando a aplicação inicia:
+        1. Verifica/refresh do token em background
+        2. Inicia o sync periódico de produtos (1h)
         """
-        import os
         # Evita executar duas vezes (Django reloader)
         if os.environ.get('RUN_MAIN') != 'true':
             return
 
+        # Thread de verificação de token
         thread = threading.Thread(target=self._startup_token_check, daemon=True)
         thread.start()
+
+        # Thread de sync de produtos (a cada 1h)
+        self._start_products_sync()
+
+    def _start_products_sync(self):
+        """Inicia a thread de sincronização de produtos em background."""
+        try:
+            from .products_sync import start_background_sync
+            start_background_sync()
+        except Exception as e:
+            logger.error(f'Erro ao iniciar sync de produtos: {e}')
 
     def _startup_token_check(self):
         """Verifica e faz refresh do token ao iniciar a aplicação."""

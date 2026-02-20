@@ -176,6 +176,7 @@ DOCS_HTML = """<!DOCTYPE html>
 
   <div class="nav-section">Produtos</div>
   <a class="nav-item" href="#myproducts"><span class="badge badge-get">GET</span> /myproducts</a>
+  <a class="nav-item" href="#myproducts-sync"><span class="badge badge-post">POST</span> /myproducts/sync</a>
 
   <div class="nav-section">Pedidos</div>
   <a class="nav-item" href="#myorders"><span class="badge badge-get">GET</span> /myorders</a>
@@ -272,7 +273,7 @@ DOCS_HTML = """<!DOCTYPE html>
     </div>
     <div class="endpoint-body">
       <div class="endpoint-body-inner">
-        <p class="desc">Busca todos os produtos ativos do seller de forma <strong style="color:var(--accent-light)">assíncrona e paralela</strong> (até ~6x mais rápido que síncrono). Retorna título, preço, estoque, quantidade vendida, TTS (Time to Sale), SKU, GTIN, marca e foto.</p>
+        <p class="desc">Retorna os produtos do <strong style="color:var(--accent-light)">cache Supabase</strong> (atualizado automaticamente a cada 1 hora em background). Zero chamadas ao ML API nesta rota = <strong style="color:var(--get)">uso mínimo de RAM</strong>. Se o cache estiver vazio, executa um sync imediato na primeira chamada.</p>
 
         <div class="params-title">Parâmetros</div>
         <p style="color:var(--text-muted);font-size:.84rem">Nenhum parâmetro necessário.</p>
@@ -283,11 +284,13 @@ DOCS_HTML = """<!DOCTYPE html>
           <div class="res-header"><span class="status-badge s200">200 OK</span></div>
           <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>{
   "total_produtos": 42,
+  "ultimo_sync": "2026-02-20T14:30:00+00:00",
+  "sync_status": "completed",
   "produtos": [
     {
       "ID": "MLB3456789012",
-      "título": "Tênis Esportivo Running Pro",
-      "preço": 199.90,
+      "titulo": "Tenis Esportivo Running Pro",
+      "preco": 199.90,
       "estoque_atual": 15,
       "quantidade_vendida": 230,
       "data_de_criacao": "2023-01-10T08:30:00.000Z",
@@ -301,6 +304,33 @@ DOCS_HTML = """<!DOCTYPE html>
       "TTS_horas": 3.21
     }
   ]
+}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep-myproducts-sync" style="margin-top:12px">
+    <div class="endpoint-header" onclick="toggle('ep-myproducts-sync')">
+      <span class="method method-post">POST</span>
+      <span class="endpoint-path">/myproducts/sync</span>
+      <span class="endpoint-summary">Força sync imediato dos produtos</span>
+      <span class="chevron">&#9660;</span>
+    </div>
+    <div class="endpoint-body">
+      <div class="endpoint-body-inner">
+        <p class="desc">Força uma sincronização imediata dos produtos do Mercado Livre para o Supabase. Normalmente não é necessário — o sync automático roda a cada 1 hora em background.</p>
+
+        <div class="params-title">Body</div>
+        <p style="color:var(--text-muted);font-size:.84rem">Nenhum body necessário.</p>
+
+        <br/>
+        <div class="response-block">
+          <div class="res-header"><span class="status-badge s200">200 OK</span></div>
+          <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>{
+  "message": "Sincronizacao concluida!",
+  "total_items": 42,
+  "last_sync_at": "2026-02-20T14:30:00+00:00"
 }</pre>
         </div>
       </div>
@@ -559,7 +589,7 @@ GET /productads?period=90 → últimos 90 dias</pre>
 
   // Highlight nav item on scroll
   const navItems = document.querySelectorAll('.nav-item');
-  const sections = ['me','myproducts','myorders','productads','token-status','token-refresh','debug-env'];
+  const sections = ['me','myproducts','myproducts-sync','myorders','productads','token-status','token-refresh','debug-env'];
 
   window.addEventListener('scroll', () => {
     let current = '';

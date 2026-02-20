@@ -17,6 +17,7 @@ from .ml_api import ml_api
 from .ml_api_async import ml_api_async
 from .token_manager import token_manager
 from .orders_service import sync_stream_orders
+from .products_sync import get_cached_products, get_sync_status, run_sync
 
 logger = logging.getLogger(__name__)
 
@@ -149,23 +150,57 @@ class RefreshTokenView(APIView):
 class MyProductsView(APIView):
     """
     GET /myproducts
-    Busca todos os produtos do seller de forma assíncrona (muito mais rápido).
-    Retorna no formato: {total_produtos, produtos[]} com TTS ordenado.
+    Retorna os produtos do cache Supabase (atualizado a cada 1h em background).
+    Muito mais leve — zero chamadas ao ML API nesta rota.
     """
 
     def get(self, request):
         try:
-            logger.info('Iniciando busca assíncrona de produtos...')
-            
-            # Executa a função assíncrona de forma síncrona (Django + DRF)
-            result = async_to_sync(ml_api_async.get_all_my_products_paginated)()
-            
-            logger.info(f'Busca concluída: {result["total_produtos"]} produtos.')
-            
+            logger.info('Buscando produtos do cache Supabase...')
+
+            result = get_cached_products()
+
+            # Se o cache está vazio, faz um sync imediato
+            if result['total_produtos'] == 0:
+                logger.info('Cache vazio — executando sync imediato...')
+                run_sync()
+                result = get_cached_products()
+
+            # Adiciona info do ultimo sync
+            sync_info = get_sync_status()
+            result['ultimo_sync'] = sync_info.get('last_sync_at') if sync_info else None
+            result['sync_status'] = sync_info.get('status') if sync_info else None
+
+            logger.info(f'Retornando {result["total_produtos"]} produtos do cache.')
+
             return Response(result, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             logger.error(f'Erro ao buscar produtos: {e}')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class SyncProductsView(APIView):
+    """
+    POST /myproducts/sync
+    Forca uma sincronizacao imediata dos produtos (ML -> Supabase).
+    """
+
+    def post(self, request):
+        try:
+            logger.info('Sync manual de produtos solicitado...')
+            run_sync()
+            sync_info = get_sync_status()
+            return Response({
+                'message': 'Sincronizacao concluida!',
+                'total_items': sync_info.get('total_items', 0),
+                'last_sync_at': sync_info.get('last_sync_at'),
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Erro no sync manual: {e}')
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
