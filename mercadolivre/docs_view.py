@@ -292,6 +292,7 @@ DOCS_HTML = """<!DOCTYPE html>
       "ID": "MLB3456789012",
       "titulo": "Tenis Esportivo Running Pro",
       "preco": 199.90,
+      "status": "active",
       "estoque_atual": 15,
       "quantidade_vendida": 230,
       "data_de_criacao": "2023-01-10T08:30:00.000Z",
@@ -306,6 +307,17 @@ DOCS_HTML = """<!DOCTYPE html>
     }
   ]
 }</pre>
+
+          <div class="params-title" style="margin-top:16px">Valores possíveis de <code>status</code></div>
+          <table class="params-table" style="margin-top:8px">
+            <thead><tr><th>Valor</th><th>Descrição</th></tr></thead>
+            <tbody>
+              <tr><td><code>active</code></td><td>Ativo — anúncio visível e disponível para compra</td></tr>
+              <tr><td><code>paused</code></td><td>Pausado — anúncio temporariamente suspenso pelo vendedor</td></tr>
+              <tr><td><code>closed</code></td><td>Encerrado — anúncio finalizado e não disponível</td></tr>
+              <tr><td><code>under_review</code></td><td>Sob revisão — anúncio em análise pelo Mercado Livre</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
