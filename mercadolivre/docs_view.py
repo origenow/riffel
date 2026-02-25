@@ -377,6 +377,7 @@ DOCS_HTML = """<!DOCTYPE html>
   "vendas_detalhadas": [
     {
       "order_id": "2000123456789",
+      "date_created": "2026-02-20T10:14:28.000-04:00",
       "unit_price": 199.90,
       "quantity": 2,
       "gross_item": 399.80,
@@ -400,6 +401,31 @@ DOCS_HTML = """<!DOCTYPE html>
   "ultimo_sync": "2026-02-20T14:30:00+00:00",
   "sync_status": "completed"
 }</pre>
+
+          <div class="params-title" style="margin-top:16px">Campos de <code>vendas_detalhadas</code></div>
+          <table class="params-table" style="margin-top:8px">
+            <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+            <tbody>
+              <tr><td><code>order_id</code></td><td>string</td><td>Identificador único do pedido no Mercado Livre</td></tr>
+              <tr>
+                <td><code>date_created</code></td>
+                <td>string (ISO 8601)</td>
+                <td>
+                  Data e hora de criação do pedido no formato <code>YYYY-MM-DDTHH:mm:ss.SSS±HH:mm</code><br/>
+                  <span style="color:var(--text-muted);font-size:.82rem">Exemplo: <code>2026-02-20T10:14:28.000-04:00</code> — inclui offset de fuso horário retornado pelo ML</span>
+                </td>
+              </tr>
+              <tr><td><code>unit_price</code></td><td>number</td><td>Preço unitário do item no pedido</td></tr>
+              <tr><td><code>quantity</code></td><td>integer</td><td>Quantidade de unidades do item</td></tr>
+              <tr><td><code>gross_item</code></td><td>number</td><td>Valor bruto do item (<code>unit_price × quantity</code>)</td></tr>
+              <tr><td><code>gross_items_order</code></td><td>number</td><td>Valor bruto total do pedido (todos os itens)</td></tr>
+              <tr><td><code>sale_fee_total_order</code></td><td>number</td><td>Taxa de venda cobrada pelo ML no pedido</td></tr>
+              <tr><td><code>marketplace_fee_order</code></td><td>number</td><td>Comissão total do marketplace no pedido</td></tr>
+              <tr><td><code>seller_shipping_cost</code></td><td>number</td><td>Custo de frete cobrado do vendedor</td></tr>
+              <tr><td><code>net_order_simplified</code></td><td>number</td><td>Valor líquido do pedido (<code>bruto − taxas − frete</code>)</td></tr>
+              <tr><td><code>discount_total_order</code></td><td>number</td><td>Total de descontos aplicados no pedido</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

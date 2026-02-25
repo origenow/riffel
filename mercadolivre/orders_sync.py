@@ -151,6 +151,7 @@ def process_order(order, discount_cache, shipment_cache) -> List[dict]:
 
         rows.append({
             "order_id": str(order_id),
+            "date_created": order.get("date_created"),
             "unit_price": round(unit_price, 2),
             "quantity": quantity,
             "gross_item": round(gross_item, 2),
@@ -429,6 +430,7 @@ def get_cached_orders() -> dict:
     for row in all_rows:
         vendas.append({
             "order_id": row['order_id'],
+            "date_created": row.get('date_created'),
             "unit_price": float(row['unit_price']) if row['unit_price'] is not None else 0,
             "quantity": row['quantity'],
             "gross_item": float(row['gross_item']) if row['gross_item'] is not None else 0,
