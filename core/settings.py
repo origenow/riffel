@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'mercadolivre',
 ]
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -102,6 +104,9 @@ ML_APP_ID = os.getenv('ML_APP_ID')
 ML_SECRET_KEY = os.getenv('ML_SECRET_KEY')
 ML_REDIRECT_URI = os.getenv('ML_REDIRECT_URI')
 ML_API_BASE = 'https://api.mercadolibre.com'
+
+# ========== CORS ==========
+CORS_ALLOW_ALL_ORIGINS = True
 
 # ========== DRF ==========
 REST_FRAMEWORK = {
