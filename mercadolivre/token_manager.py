@@ -211,6 +211,68 @@ class TokenManager:
             return token_data['access_token']
         return None
 
+    def update_user_info(self, user_id: int, user_info: dict) -> dict:
+        """
+        Atualiza as informações do usuário (nickname, email, first_name)
+        obtidas do endpoint /users/me do Mercado Livre.
+        """
+        from datetime import datetime, timezone
+        
+        now = datetime.now(timezone.utc)
+        
+        data = {
+            'nickname': user_info.get('nickname'),
+            'email': user_info.get('email'),
+            'first_name': user_info.get('first_name'),
+            'last_updated_me': now.isoformat(),
+        }
+        
+        try:
+            result = (
+                self.supabase.table(TABLE_NAME)
+                .update(data)
+                .eq('user_id', user_id)
+                .execute()
+            )
+            logger.info(f'Informações do usuário {user_id} atualizadas.')
+            return result.data[0] if result.data else data
+        except Exception as e:
+            logger.error(f'Erro ao atualizar informações do usuário: {e}')
+            raise
+
+    def get_all_users(self) -> list[dict]:
+        """
+        Retorna todos os usuários conectados com suas informações.
+        """
+        try:
+            result = (
+                self.supabase.table(TABLE_NAME)
+                .select('user_id, nickname, email, first_name, expires_at, updated_at, last_updated_me')
+                .order('updated_at', desc=True)
+                .execute()
+            )
+            return result.data or []
+        except Exception as e:
+            logger.error(f'Erro ao buscar usuários: {e}')
+            return []
+
+    def delete_user(self, user_id: int) -> bool:
+        """
+        Remove a conexão de um usuário (deleta o token do banco).
+        """
+        try:
+            result = (
+                self.supabase.table(TABLE_NAME)
+                .delete()
+                .eq('user_id', user_id)
+                .execute()
+            )
+            logger.info(f'Usuário {user_id} removido.')
+            return True
+        except Exception as e:
+            logger.error(f'Erro ao remover usuário: {e}')
+            return False
+
 
 # Instância global
 token_manager = TokenManager()

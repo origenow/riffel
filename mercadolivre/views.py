@@ -31,14 +31,22 @@ def formatar_cnpj(cnpj: str) -> str:
 
 class MeView(APIView):
     """
-    GET /me
+    GET /users/{user_id}/me
     Retorna os dados da conta do Mercado Livre do usuário autenticado.
     Faz refresh automático do token se necessário.
     """
 
-    def get(self, request):
+    def get(self, request, user_id):
         try:
-            user_data = ml_api.get_me()
+            # Verifica se o usuário existe
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            user_data = ml_api.get_me(user_id)
             
             # Extrai e formata apenas os dados solicitados
             cnpj_numero = user_data.get('identification', {}).get('number', '')
@@ -88,16 +96,16 @@ class MeView(APIView):
 
 class TokenStatusView(APIView):
     """
-    GET /token/status
+    GET /users/{user_id}/token/status
     Retorna o status do token armazenado (sem expor o token em si).
     """
 
-    def get(self, request):
+    def get(self, request, user_id):
         try:
-            token_data = token_manager.get_token()
+            token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': 'Nenhum token encontrado. Faça a autenticação.'},
+                    {'error': f'Usuário {user_id} não encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -119,16 +127,16 @@ class TokenStatusView(APIView):
 
 class RefreshTokenView(APIView):
     """
-    POST /token/refresh
+    POST /users/{user_id}/token/refresh
     Força um refresh do token manualmente.
     """
 
-    def post(self, request):
+    def post(self, request, user_id):
         try:
-            token_data = token_manager.get_token()
+            token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': 'Nenhum token encontrado para fazer refresh.'},
+                    {'error': f'Usuário {user_id} não encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -149,14 +157,22 @@ class RefreshTokenView(APIView):
 
 class MyProductsView(APIView):
     """
-    GET /myproducts
+    GET /users/{user_id}/myproducts
     Retorna os produtos do cache Supabase (atualizado a cada 1h em background).
     Muito mais leve — zero chamadas ao ML API nesta rota.
     """
 
-    def get(self, request):
+    def get(self, request, user_id):
         try:
-            logger.info('Buscando produtos do cache Supabase...')
+            # Verifica se o usuário existe
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            logger.info(f'Buscando produtos do cache Supabase para user_id={user_id}...')
 
             result = get_cached_products()
 
@@ -185,13 +201,21 @@ class MyProductsView(APIView):
 
 class SyncProductsView(APIView):
     """
-    POST /myproducts/sync
+    POST /users/{user_id}/myproducts/sync
     Forca uma sincronizacao imediata dos produtos (ML -> Supabase).
     """
 
-    def post(self, request):
+    def post(self, request, user_id):
         try:
-            logger.info('Sync manual de produtos solicitado...')
+            # Verifica se o usuário existe
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            logger.info(f'Sync manual de produtos solicitado para user_id={user_id}...')
             run_sync()
             sync_info = get_sync_status()
             return Response({
@@ -209,14 +233,22 @@ class SyncProductsView(APIView):
 
 class MyOrdersView(APIView):
     """
-    GET /myorders
+    GET /users/{user_id}/myorders
     Retorna os pedidos do cache Supabase (atualizado a cada 1h em background).
     Formato identico ao meli_vendas_detalhadas.json.
     """
 
-    def get(self, request):
+    def get(self, request, user_id):
         try:
-            logger.info('Buscando pedidos do cache Supabase...')
+            # Verifica se o usuário existe
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            logger.info(f'Buscando pedidos do cache Supabase para user_id={user_id}...')
 
             result = get_cached_orders()
 
@@ -245,13 +277,21 @@ class MyOrdersView(APIView):
 
 class SyncOrdersView(APIView):
     """
-    POST /myorders/sync
+    POST /users/{user_id}/myorders/sync
     Forca uma sincronizacao imediata dos pedidos (ML -> Supabase).
     """
 
-    def post(self, request):
+    def post(self, request, user_id):
         try:
-            logger.info('Sync manual de pedidos solicitado...')
+            # Verifica se o usuário existe
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            logger.info(f'Sync manual de pedidos solicitado para user_id={user_id}...')
             run_orders_sync()
             sync_info = get_orders_sync_status()
             return Response({
@@ -310,7 +350,7 @@ class DebugEnvView(APIView):
 
 class ProductAdsView(APIView):
     """
-    GET /productads?period=30
+    GET /users/{user_id}/productads?period=30
     Retorna metricas de Product Ads do Mercado Livre.
     Periodos permitidos: 7, 15, 30, 60, 90 (padrao: 30).
 
@@ -331,8 +371,16 @@ class ProductAdsView(APIView):
 
     ALLOWED_PERIODS = [7, 15, 30, 60, 90]
 
-    def get(self, request):
+    def get(self, request, user_id):
         try:
+            # Verifica se o usuário existe
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
             # Periodo via query param (?period=30)
             period_days = int(request.query_params.get('period', 30))
             if period_days not in self.ALLOWED_PERIODS:
@@ -342,7 +390,7 @@ class ProductAdsView(APIView):
                 )
 
             # Token do Supabase
-            access_token = token_manager.ensure_valid_token()
+            access_token = token_manager.ensure_valid_token(user_id)
             if not access_token:
                 return Response(
                     {'error': 'Nenhum token valido encontrado.'},

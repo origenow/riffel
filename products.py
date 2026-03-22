@@ -4,10 +4,23 @@ import json
 import time
 from datetime import datetime, timezone
 
-ACCESS_TOKEN = "APP_USR-4943523961409438-021212-e3b4aa7caa6d2948a46b50c0aa096e95-533863251"
-USER_ID = "533863251"
+# =====================================================
+# NOTA: Este script foi integrado à API Django.
+# Use o endpoint: GET /users/{user_id}/myproducts
+# Para usar este script standalone, configure abaixo.
+# =====================================================
+
+ACCESS_TOKEN = None  # Configure seu token aqui se quiser usar standalone
+USER_ID = None  # Configure seu user_id aqui se quiser usar standalone
 
 BASE_URL = "https://api.mercadolibre.com"
+
+if not ACCESS_TOKEN or not USER_ID:
+    raise ValueError(
+        "ACCESS_TOKEN e USER_ID não configurados. "
+        "Use a API Django: GET /users/{user_id}/myproducts"
+    )
+
 HEADERS = {
     "Authorization": f"Bearer {ACCESS_TOKEN}"
 }

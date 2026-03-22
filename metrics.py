@@ -5,12 +5,22 @@ from datetime import datetime, timedelta
 # =====================================================
 # 🔑 CONFIGURAÇÃO
 # =====================================================
-ACCESS_TOKEN = "APP_USR-4943523961409438-021807-50befc829b5f706862a2bd7f67e78b99-533863251"
+# NOTA: Este script foi integrado à API Django.
+# Use o endpoint: GET /users/{user_id}/productads?period=30
+# Para usar este script standalone, configure o ACCESS_TOKEN abaixo.
+
+ACCESS_TOKEN = None  # Configure seu token aqui se quiser usar standalone
 
 # PERÍODOS PERMITIDOS: 7, 15, 30, 60, 90
 PERIOD_DAYS = 30   # 👈 padrão dashboard
 
 BASE_URL = "https://api.mercadolibre.com"
+
+if not ACCESS_TOKEN:
+    raise ValueError(
+        "ACCESS_TOKEN não configurado. "
+        "Use a API Django: GET /users/{user_id}/productads?period=30"
+    )
 
 HEADERS_V1 = {
     "Authorization": f"Bearer {ACCESS_TOKEN}",

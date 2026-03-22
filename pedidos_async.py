@@ -24,7 +24,17 @@ import httpx
 # =========================
 # CONFIG
 # =========================
-BEARER_TOKEN = "APP_USR-4943523961409438-021807-50befc829b5f706862a2bd7f67e78b99-533863251"
+# NOTA: Este script foi integrado à API Django.
+# Use o endpoint: GET /users/{user_id}/myorders
+# Para usar este script standalone, configure o BEARER_TOKEN abaixo.
+
+BEARER_TOKEN = None  # Configure seu token aqui se quiser usar standalone
+
+if not BEARER_TOKEN:
+    raise ValueError(
+        "BEARER_TOKEN não configurado. "
+        "Use a API Django: GET /users/{user_id}/myorders"
+    )
 
 BASE_URL = "https://api.mercadolibre.com"
 LIMIT = 50
