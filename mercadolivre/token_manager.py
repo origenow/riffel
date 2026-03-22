@@ -222,7 +222,6 @@ class TokenManager:
         
         data = {
             'nickname': user_info.get('nickname'),
-            'email': user_info.get('email'),
             'first_name': user_info.get('first_name'),
             'last_updated_me': now.isoformat(),
         }
@@ -247,7 +246,7 @@ class TokenManager:
         try:
             result = (
                 self.supabase.table(TABLE_NAME)
-                .select('user_id, nickname, email, first_name, expires_at, updated_at, last_updated_me')
+                .select('user_id, nickname, first_name, expires_at, updated_at, last_updated_me')
                 .order('updated_at', desc=True)
                 .execute()
             )

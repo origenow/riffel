@@ -50,11 +50,16 @@ class AuthCallbackView(APIView):
 
         if error:
             logger.error(f'Erro na autorização ML: {error}')
-            return redirect('https://riffel.origenow.com.br/erro-autorizacao')
+            return Response(
+                {'error': f'Autorização negada: {error}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not code:
-            logger.error('Código de autorização não fornecido.')
-            return redirect('https://riffel.origenow.com.br/erro-autorizacao')
+            return Response(
+                {'error': 'Código de autorização não fornecido.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             # 1. Trocar código por token
@@ -72,9 +77,12 @@ class AuthCallbackView(APIView):
             
             # 4. Redirecionar para o frontend
             logger.info(f'Autenticação bem-sucedida para user_id={user_id}. Redirecionando...')
-            redirect_url = f'https://riffel.origenow.com.br/?auth=success&user_id={user_id}&nickname={user_info.get("nickname", "")}'
+            redirect_url = f'https://riffel.origenow.com.br/?auth=success&user_id={user_id}&nickname={user_info.get("nickname", "")}&first_name={user_info.get("first_name", "")}'
             return redirect(redirect_url)
 
         except Exception as e:
             logger.error(f'Erro no callback OAuth2: {e}')
-            return redirect('https://riffel.origenow.com.br/erro-autorizacao')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

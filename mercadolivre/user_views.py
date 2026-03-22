@@ -56,7 +56,6 @@ class UserDetailView(APIView):
             return Response({
                 'user_id': token_data.get('user_id'),
                 'nickname': token_data.get('nickname'),
-                'email': token_data.get('email'),
                 'first_name': token_data.get('first_name'),
                 'token_type': token_data.get('token_type'),
                 'expires_at': token_data.get('expires_at'),
