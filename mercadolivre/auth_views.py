@@ -3,6 +3,7 @@ Views de autenticação OAuth2 do Mercado Livre.
 """
 
 import logging
+import threading
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -13,6 +14,8 @@ from rest_framework import status
 
 from .token_manager import token_manager
 from .ml_api import ml_api
+from .products_sync import run_sync
+from .orders_sync import run_orders_sync
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +78,28 @@ class AuthCallbackView(APIView):
             logger.info('Salvando dados do usuário no Supabase...')
             token_manager.update_user_info(user_id, user_info)
             
-            # 4. Redirecionar para o frontend
+            # 4. Iniciar sync de produtos e pedidos em background
+            def sync_user_data():
+                try:
+                    logger.info(f'[BACKGROUND] Iniciando sync de produtos para user_id={user_id}...')
+                    run_sync(user_id)
+                    logger.info(f'[BACKGROUND] Sync de produtos concluído para user_id={user_id}.')
+                except Exception as e:
+                    logger.error(f'[BACKGROUND] Erro no sync de produtos para user_id={user_id}: {e}')
+                
+                try:
+                    logger.info(f'[BACKGROUND] Iniciando sync de pedidos para user_id={user_id}...')
+                    run_orders_sync(user_id)
+                    logger.info(f'[BACKGROUND] Sync de pedidos concluído para user_id={user_id}.')
+                except Exception as e:
+                    logger.error(f'[BACKGROUND] Erro no sync de pedidos para user_id={user_id}: {e}')
+            
+            # Inicia thread de sync em background
+            sync_thread = threading.Thread(target=sync_user_data, daemon=True, name=f'sync-user-{user_id}')
+            sync_thread.start()
+            logger.info(f'Sync em background iniciado para user_id={user_id}.')
+            
+            # 5. Redirecionar para o frontend imediatamente
             logger.info(f'Autenticação bem-sucedida para user_id={user_id}. Redirecionando...')
             redirect_url = f'https://riffel.origenow.com.br/?auth=success&user_id={user_id}&nickname={user_info.get("nickname", "")}&first_name={user_info.get("first_name", "")}'
             return redirect(redirect_url)

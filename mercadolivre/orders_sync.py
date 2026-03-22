@@ -121,7 +121,7 @@ def calc_order_net(gross_items: float, marketplace_fee: float, seller_shipping_c
     return gross_items - marketplace_fee - seller_shipping_cost
 
 
-def process_order(order, discount_cache, shipment_cache) -> List[dict]:
+def process_order(order, discount_cache, shipment_cache, user_id: int) -> List[dict]:
     """Processa um pedido e retorna lista de rows para o Supabase."""
     order_id = order["id"]
     order_items = order.get("order_items", []) or []
@@ -151,6 +151,7 @@ def process_order(order, discount_cache, shipment_cache) -> List[dict]:
 
         rows.append({
             "order_id": str(order_id),
+            "user_id": user_id,
             "date_created": order.get("date_created"),
             "unit_price": round(unit_price, 2),
             "quantity": quantity,
@@ -222,14 +223,14 @@ class _MeliClient:
 
 
 # ─── fetch completo assíncrono ──────────────────────────────────────
-async def _fetch_all_orders() -> tuple[list[dict], dict]:
+async def _fetch_all_orders(user_id: int) -> tuple[list[dict], dict]:
     """
     Busca todos os pedidos do ML de forma assíncrona.
     Retorna (lista_de_rows, resumo).
     """
-    access_token = token_manager.ensure_valid_token()
+    access_token = token_manager.ensure_valid_token(user_id)
     if not access_token:
-        raise RuntimeError('Nenhum token disponivel para sync de pedidos.')
+        raise RuntimeError(f'Nenhum token disponivel para sync de pedidos do user_id={user_id}.')
 
     meli = _MeliClient(token=access_token)
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
@@ -305,7 +306,7 @@ async def _fetch_all_orders() -> tuple[list[dict], dict]:
     order_totals: Dict[str, dict] = {}
 
     for order in all_orders:
-        rows = process_order(order, discount_cache, shipment_cache)
+        rows = process_order(order, discount_cache, shipment_cache, user_id)
         all_rows.extend(rows)
 
         if rows:
@@ -334,14 +335,14 @@ async def _fetch_all_orders() -> tuple[list[dict], dict]:
 
 
 # ─── upsert no Supabase ────────────────────────────────────────────
-def _save_orders_to_supabase(rows: list[dict], resumo: dict):
+def _save_orders_to_supabase(rows: list[dict], resumo: dict, user_id: int):
     """Salva todos os pedidos no Supabase (limpa e reinsere)."""
     sb = get_supabase_client()
     now = datetime.now(timezone.utc).isoformat()
 
-    # 1. Limpa a tabela de orders (replace completo - mais seguro)
-    sb.table(ORDERS_TABLE).delete().neq('id', 0).execute()
-    logger.info('[SYNC-ORDERS] Tabela de orders limpa.')
+    # 1. Limpa apenas os orders do user_id
+    sb.table(ORDERS_TABLE).delete().eq('user_id', user_id).execute()
+    logger.info(f'[SYNC-ORDERS] Orders do user_id={user_id} limpos.')
 
     # 2. Insere em lotes de 200
     batch_size = 200
@@ -356,11 +357,12 @@ def _save_orders_to_supabase(rows: list[dict], resumo: dict):
 
     # 3. Salva/atualiza resumo
     resumo['synced_at'] = now
-    # Limpa e reinsere (sempre 1 registro)
-    sb.table(SUMMARY_TABLE).delete().neq('id', 0).execute()
+    resumo['user_id'] = user_id
+    # Limpa e reinsere apenas do user_id
+    sb.table(SUMMARY_TABLE).delete().eq('user_id', user_id).execute()
     sb.table(SUMMARY_TABLE).insert(resumo).execute()
 
-    logger.info('[SYNC-ORDERS] Resumo financeiro salvo.')
+    logger.info(f'[SYNC-ORDERS] Resumo financeiro salvo para user_id={user_id}.')
 
 
 def _update_sync_status(status_str: str, total: int = 0, error: str = None):
@@ -378,41 +380,41 @@ def _update_sync_status(status_str: str, total: int = 0, error: str = None):
 
 
 # ─── sync principal ────────────────────────────────────────────────
-def run_orders_sync():
+def run_orders_sync(user_id: int):
     """Executa um ciclo completo de sync de pedidos: ML API -> Supabase."""
-    logger.info('[SYNC-ORDERS] Iniciando sincronizacao de pedidos...')
+    logger.info(f'[SYNC-ORDERS] Iniciando sincronizacao de pedidos para user_id={user_id}...')
     _update_sync_status('syncing')
 
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        rows, resumo = loop.run_until_complete(_fetch_all_orders())
+        rows, resumo = loop.run_until_complete(_fetch_all_orders(user_id))
         loop.close()
 
         if rows:
-            _save_orders_to_supabase(rows, resumo)
+            _save_orders_to_supabase(rows, resumo, user_id)
 
         _update_sync_status('completed', total=resumo.get('total_linhas', 0))
-        logger.info(f'[SYNC-ORDERS] Sincronizacao concluida: {resumo.get("total_linhas", 0)} linhas.')
+        logger.info(f'[SYNC-ORDERS] Sincronizacao concluida: {resumo.get("total_linhas", 0)} linhas para user_id={user_id}.')
 
     except Exception as e:
-        logger.error(f'[SYNC-ORDERS] Erro na sincronizacao: {e}')
+        logger.error(f'[SYNC-ORDERS] Erro na sincronizacao para user_id={user_id}: {e}')
         _update_sync_status('error', error=str(e))
 
 
 # ─── leitura do cache ──────────────────────────────────────────────
-def get_cached_orders() -> dict:
+def get_cached_orders(user_id: int) -> dict:
     """Le os pedidos do cache no Supabase. Formato identico ao meli_vendas_detalhadas.json."""
     sb = get_supabase_client()
 
-    # Busca todas as linhas de orders
+    # Busca todas as linhas de orders do user_id
     # Supabase retorna max 1000 por padrão, paginar se necessário
     all_rows = []
     page = 0
     page_size = 1000
 
     while True:
-        result = sb.table(ORDERS_TABLE).select('*').range(
+        result = sb.table(ORDERS_TABLE).select('*').eq('user_id', user_id).range(
             page * page_size, (page + 1) * page_size - 1
         ).execute()
 
@@ -442,8 +444,8 @@ def get_cached_orders() -> dict:
             "discount_total_order": float(row['discount_total_order']) if row['discount_total_order'] is not None else 0,
         })
 
-    # Busca resumo
-    summary_result = sb.table(SUMMARY_TABLE).select('*').limit(1).execute()
+    # Busca resumo do user_id
+    summary_result = sb.table(SUMMARY_TABLE).select('*').eq('user_id', user_id).limit(1).execute()
     resumo = {}
     if summary_result.data:
         s = summary_result.data[0]

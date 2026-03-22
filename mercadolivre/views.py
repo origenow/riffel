@@ -174,13 +174,13 @@ class MyProductsView(APIView):
             
             logger.info(f'Buscando produtos do cache Supabase para user_id={user_id}...')
 
-            result = get_cached_products()
+            result = get_cached_products(user_id)
 
             # Se o cache está vazio, faz um sync imediato
             if result['total_produtos'] == 0:
-                logger.info('Cache vazio — executando sync imediato...')
-                run_sync()
-                result = get_cached_products()
+                logger.info(f'Cache vazio — executando sync imediato para user_id={user_id}...')
+                run_sync(user_id)
+                result = get_cached_products(user_id)
 
             # Adiciona info do ultimo sync
             sync_info = get_sync_status()
@@ -216,7 +216,7 @@ class SyncProductsView(APIView):
                 )
             
             logger.info(f'Sync manual de produtos solicitado para user_id={user_id}...')
-            run_sync()
+            run_sync(user_id)
             sync_info = get_sync_status()
             return Response({
                 'message': 'Sincronizacao concluida!',
@@ -250,13 +250,13 @@ class MyOrdersView(APIView):
             
             logger.info(f'Buscando pedidos do cache Supabase para user_id={user_id}...')
 
-            result = get_cached_orders()
+            result = get_cached_orders(user_id)
 
             # Se o cache está vazio, faz um sync imediato
             if not result.get('vendas_detalhadas'):
-                logger.info('Cache de pedidos vazio — executando sync imediato...')
-                run_orders_sync()
-                result = get_cached_orders()
+                logger.info(f'Cache de pedidos vazio — executando sync imediato para user_id={user_id}...')
+                run_orders_sync(user_id)
+                result = get_cached_orders(user_id)
 
             # Adiciona info do ultimo sync
             sync_info = get_orders_sync_status()
@@ -292,7 +292,7 @@ class SyncOrdersView(APIView):
                 )
             
             logger.info(f'Sync manual de pedidos solicitado para user_id={user_id}...')
-            run_orders_sync()
+            run_orders_sync(user_id)
             sync_info = get_orders_sync_status()
             return Response({
                 'message': 'Sincronizacao de pedidos concluida!',

@@ -10,6 +10,7 @@ from rest_framework import status
 
 from .token_manager import token_manager
 from .ml_api import ml_api
+from .supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -89,17 +90,44 @@ class UserDeleteView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            # Remove o usuário
+            sb = get_supabase_client()
+            
+            # 1. Deletar produtos do usuário
+            logger.info(f'Deletando produtos do user_id={user_id}...')
+            products_result = sb.table('mercadolivre_products').delete().eq('user_id', user_id).execute()
+            products_deleted = len(products_result.data) if products_result.data else 0
+            logger.info(f'{products_deleted} produtos deletados.')
+            
+            # 2. Deletar pedidos do usuário
+            logger.info(f'Deletando pedidos do user_id={user_id}...')
+            orders_result = sb.table('mercadolivre_orders').delete().eq('user_id', user_id).execute()
+            orders_deleted = len(orders_result.data) if orders_result.data else 0
+            logger.info(f'{orders_deleted} pedidos deletados.')
+            
+            # 3. Deletar resumo de pedidos do usuário
+            logger.info(f'Deletando resumo de pedidos do user_id={user_id}...')
+            summary_result = sb.table('mercadolivre_orders_summary').delete().eq('user_id', user_id).execute()
+            summary_deleted = len(summary_result.data) if summary_result.data else 0
+            logger.info(f'{summary_deleted} resumos deletados.')
+            
+            # 4. Deletar token do usuário
+            logger.info(f'Deletando token do user_id={user_id}...')
             success = token_manager.delete_user(user_id)
             
             if success:
                 return Response({
-                    'message': f'Usuário {user_id} removido com sucesso.',
-                    'user_id': user_id
+                    'message': f'Usuário {user_id} e todos os seus dados removidos com sucesso.',
+                    'user_id': user_id,
+                    'deleted': {
+                        'products': products_deleted,
+                        'orders': orders_deleted,
+                        'summary': summary_deleted,
+                        'token': True
+                    }
                 }, status=status.HTTP_200_OK)
             else:
                 return Response(
-                    {'error': 'Falha ao remover usuário.'},
+                    {'error': 'Falha ao remover token do usuário.'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 

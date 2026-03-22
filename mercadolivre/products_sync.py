@@ -37,11 +37,12 @@ def _calcular_tts(start_time_str: str, sold_quantity: int) -> float | None:
         return None
 
 
-def _extrair_dados(item: dict) -> dict:
+def _extrair_dados(item: dict, user_id: int) -> dict:
     attrs = {a['id']: a.get('value_name') for a in item.get('attributes', [])}
     fotos = item.get('pictures', [])
     return {
         'item_id': item.get('id'),
+        'user_id': user_id,
         'titulo': item.get('title'),
         'preco': item.get('price'),
         'status': item.get('status'),
@@ -92,29 +93,24 @@ async def _fetch_item_detail(
     semaphore: asyncio.Semaphore,
     item_id: str,
     headers: dict,
+    user_id: int,
 ) -> dict | None:
     api_base = settings.ML_API_BASE
     async with semaphore:
         try:
             resp = await client.get(f'{api_base}/items/{item_id}', headers=headers)
             resp.raise_for_status()
-            return _extrair_dados(resp.json())
+            return _extrair_dados(resp.json(), user_id)
         except Exception as e:
             logger.error(f'[SYNC] Erro ao buscar item {item_id}: {e}')
             return None
 
 
-async def _fetch_all_products() -> list[dict]:
+async def _fetch_all_products(user_id: int) -> list[dict]:
     """Busca todos os produtos de forma assíncrona e retorna lista de dicts."""
-    token_data = token_manager.get_token()
-    if not token_data:
-        raise RuntimeError('Nenhum token disponivel para sync de produtos.')
-
-    access_token = token_manager.ensure_valid_token(token_data['user_id'])
+    access_token = token_manager.ensure_valid_token(user_id)
     if not access_token:
-        raise RuntimeError('Token invalido/expirado para sync de produtos.')
-
-    user_id = token_data['user_id']
+        raise RuntimeError(f'Token invalido/expirado para sync de produtos do user_id={user_id}.')
     headers = {
         'Authorization': f'Bearer {access_token}',
         'Accept': 'application/json',
@@ -130,7 +126,7 @@ async def _fetch_all_products() -> list[dict]:
 
         # 2. Busca detalhes em paralelo
         sem = asyncio.Semaphore(MAX_CONCURRENT)
-        tasks = [_fetch_item_detail(client, sem, iid, headers) for iid in item_ids]
+        tasks = [_fetch_item_detail(client, sem, iid, headers, user_id) for iid in item_ids]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     produtos = [r for r in results if r and not isinstance(r, Exception)]
@@ -139,7 +135,7 @@ async def _fetch_all_products() -> list[dict]:
 
 
 # ─── upsert no Supabase ────────────────────────────────────────────
-def _upsert_products(produtos: list[dict]):
+def _upsert_products(produtos: list[dict], user_id: int):
     """Faz upsert (insert ou update) de todos os produtos no Supabase."""
     sb = get_supabase_client()
 
@@ -152,17 +148,17 @@ def _upsert_products(produtos: list[dict]):
             on_conflict='item_id',
         ).execute()
 
-    logger.info(f'[SYNC] {len(produtos)} produtos upsertados no Supabase.')
+    logger.info(f'[SYNC] {len(produtos)} produtos upsertados no Supabase para user_id={user_id}.')
 
-    # Remove produtos que nao existem mais no ML
+    # Remove produtos que nao existem mais no ML (apenas do user_id)
     existing_ids = {p['item_id'] for p in produtos}
-    db_items = sb.table(PRODUCTS_TABLE).select('item_id').execute()
+    db_items = sb.table(PRODUCTS_TABLE).select('item_id').eq('user_id', user_id).execute()
     to_delete = [row['item_id'] for row in db_items.data if row['item_id'] not in existing_ids]
 
     if to_delete:
         for item_id in to_delete:
-            sb.table(PRODUCTS_TABLE).delete().eq('item_id', item_id).execute()
-        logger.info(f'[SYNC] {len(to_delete)} produtos removidos (nao existem mais no ML).')
+            sb.table(PRODUCTS_TABLE).delete().eq('item_id', item_id).eq('user_id', user_id).execute()
+        logger.info(f'[SYNC] {len(to_delete)} produtos removidos (nao existem mais no ML) para user_id={user_id}.')
 
 
 def _update_sync_status(status_str: str, total: int = 0, error: str = None):
@@ -180,36 +176,36 @@ def _update_sync_status(status_str: str, total: int = 0, error: str = None):
 
 
 # ─── sync principal ────────────────────────────────────────────────
-def run_sync():
+def run_sync(user_id: int):
     """Executa um ciclo completo de sync: ML API -> Supabase."""
-    logger.info('[SYNC] Iniciando sincronizacao de produtos...')
+    logger.info(f'[SYNC] Iniciando sincronizacao de produtos para user_id={user_id}...')
     _update_sync_status('syncing')
 
     try:
         # Cria event loop novo para rodar o async
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        produtos = loop.run_until_complete(_fetch_all_products())
+        produtos = loop.run_until_complete(_fetch_all_products(user_id))
         loop.close()
 
         if produtos:
-            _upsert_products(produtos)
+            _upsert_products(produtos, user_id)
 
         _update_sync_status('completed', total=len(produtos))
-        logger.info(f'[SYNC] Sincronizacao concluida: {len(produtos)} produtos.')
+        logger.info(f'[SYNC] Sincronizacao concluida: {len(produtos)} produtos para user_id={user_id}.')
 
     except Exception as e:
-        logger.error(f'[SYNC] Erro na sincronizacao: {e}')
+        logger.error(f'[SYNC] Erro na sincronizacao para user_id={user_id}: {e}')
         _update_sync_status('error', error=str(e))
 
 
 # ─── leitura do cache ──────────────────────────────────────────────
-def get_cached_products() -> dict:
+def get_cached_products(user_id: int) -> dict:
     """Le os produtos do cache no Supabase. Retorno no mesmo formato da API."""
     sb = get_supabase_client()
 
-    # Busca todos ordenados por TTS
-    result = sb.table(PRODUCTS_TABLE).select('*').order(
+    # Busca todos do user_id ordenados por TTS
+    result = sb.table(PRODUCTS_TABLE).select('*').eq('user_id', user_id).order(
         'tts_horas', desc=False, nullsfirst=False
     ).execute()
 
