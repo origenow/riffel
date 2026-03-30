@@ -538,7 +538,7 @@ GET /productads?period=90 → últimos 90 dias</pre>
     </div>
     <div class="endpoint-body">
       <div class="endpoint-body-inner">
-        <p class="desc">Retorna todos os anúncios (items) vinculados a uma campanha específica de Product Ads. Permite consultar dinamicamente passando o <strong style="color:var(--accent-light)">ID numérico</strong> ou o <strong style="color:var(--accent-light)">Nome Exato</strong> da campanha.</p>
+        <p class="desc">Retorna todos os anúncios (items) vinculados a uma campanha específica de Product Ads, incluindo a <strong style="color:var(--accent-light)">imagem do produto</strong> em alta resolução. Permite consultar dinamicamente passando o <strong style="color:var(--accent-light)">ID numérico</strong> ou o <strong style="color:var(--accent-light)">Nome Exato</strong> da campanha.</p>
 
         <div class="params-title">Path Parameters</div>
         <table>
@@ -566,11 +566,13 @@ GET /productads/campaigns/Black Friday/ads → Busca via Nome (resolve ID autom�
   "results": [
     {
       "id": "MLB123456789",
+      "item_id": "MLB123456789",
       "status": "active",
       "title": "Produto Exemplo com Desconto",
       "price": 199.9,
       "permalink": "https://produto.mercadolivre.com.br/...",
-      "picture_id": "848831-MLB..."
+      "picture_id": "848831-MLB...",
+      "image": "https://http2.mlstatic.com/D_NQ_NP_848831-MLB123456789_012024-O.webp"
     }
   ]
 }</pre>
