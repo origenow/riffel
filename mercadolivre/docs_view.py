@@ -569,7 +569,8 @@ GET /productads/campaigns/Black Friday/ads â†’ Busca via Nome (resolve ID automÃ
       "item_id": "MLB123456789",
       "status": "active",
       "title": "Produto Exemplo com Desconto",
-      "price": 199.9,
+      "price": 179.9,
+      "original_price": 199.9,
       "permalink": "https://produto.mercadolivre.com.br/...",
       "picture_id": "848831-MLB...",
       "image": "https://http2.mlstatic.com/D_NQ_NP_848831-MLB123456789_012024-O.webp"

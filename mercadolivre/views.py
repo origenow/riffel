@@ -601,12 +601,22 @@ class CampaignAdsView(APIView):
             resp_ads.raise_for_status()
 
             ads_data = resp_ads.json()
-            ads_results = ads_data.get('results', [])
+
+            # Deduplicar anúncios pelo item_id (mantém o primeiro de cada)
+            seen_item_ids = set()
+            ads_results = []
+            for ad in ads_data.get('results', []):
+                iid = ad.get('item_id')
+                if iid and iid not in seen_item_ids:
+                    seen_item_ids.add(iid)
+                    ads_results.append(ad)
+                elif not iid:
+                    ads_results.append(ad)
 
             # ========== 4. Enriquecer anúncios com imagens dos produtos ==========
-            item_ids = [ad['item_id'] for ad in ads_results if ad.get('item_id')]
+            item_ids = list({ad['item_id'] for ad in ads_results if ad.get('item_id')})
 
-            image_map = {}
+            item_data_map = {}
             if item_ids:
                 # ML suporta até 20 itens por request em /items
                 chunk_size = 20
@@ -615,7 +625,7 @@ class CampaignAdsView(APIView):
                     resp_items = http_requests.get(
                         f'{api_base}/items',
                         headers={'Authorization': f'Bearer {access_token}'},
-                        params={'ids': ','.join(chunk), 'attributes': 'id,thumbnail,pictures'},
+                        params={'ids': ','.join(chunk), 'attributes': 'id,price,original_price,thumbnail,pictures'},
                         timeout=30,
                     )
                     if resp_items.status_code == 200:
@@ -624,17 +634,23 @@ class CampaignAdsView(APIView):
                                 body = entry.get('body', {})
                                 item_id = body.get('id')
                                 pictures = body.get('pictures', [])
-                                # Usa a primeira imagem em alta resolução, fallback para thumbnail
                                 if pictures:
                                     image_url = pictures[0].get('url', body.get('thumbnail', ''))
                                 else:
                                     image_url = body.get('thumbnail', '')
                                 if item_id:
-                                    image_map[item_id] = image_url
+                                    item_data_map[item_id] = {
+                                        'image': image_url,
+                                        'price': body.get('price'),
+                                        'original_price': body.get('original_price'),
+                                    }
 
-            # Adiciona a imagem em cada anúncio
+            # Enriquece cada anúncio com imagem e preço correto do item
             for ad in ads_results:
-                ad['image'] = image_map.get(ad.get('item_id'), '')
+                item_data = item_data_map.get(ad.get('item_id'), {})
+                ad['image'] = item_data.get('image', '')
+                ad['price'] = item_data.get('price')
+                ad['original_price'] = item_data.get('original_price')
 
             return Response({
                 'requested_campaign': campaign_identifier,
