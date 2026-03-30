@@ -599,14 +599,48 @@ class CampaignAdsView(APIView):
                 timeout=30,
             )
             resp_ads.raise_for_status()
-            
+
             ads_data = resp_ads.json()
-            
+            ads_results = ads_data.get('results', [])
+
+            # ========== 4. Enriquecer anúncios com imagens dos produtos ==========
+            item_ids = [ad['item_id'] for ad in ads_results if ad.get('item_id')]
+
+            image_map = {}
+            if item_ids:
+                # ML suporta até 20 itens por request em /items
+                chunk_size = 20
+                for i in range(0, len(item_ids), chunk_size):
+                    chunk = item_ids[i:i + chunk_size]
+                    resp_items = http_requests.get(
+                        f'{api_base}/items',
+                        headers={'Authorization': f'Bearer {access_token}'},
+                        params={'ids': ','.join(chunk), 'attributes': 'id,thumbnail,pictures'},
+                        timeout=30,
+                    )
+                    if resp_items.status_code == 200:
+                        for entry in resp_items.json():
+                            if entry.get('code') == 200:
+                                body = entry.get('body', {})
+                                item_id = body.get('id')
+                                pictures = body.get('pictures', [])
+                                # Usa a primeira imagem em alta resolução, fallback para thumbnail
+                                if pictures:
+                                    image_url = pictures[0].get('url', body.get('thumbnail', ''))
+                                else:
+                                    image_url = body.get('thumbnail', '')
+                                if item_id:
+                                    image_map[item_id] = image_url
+
+            # Adiciona a imagem em cada anúncio
+            for ad in ads_results:
+                ad['image'] = image_map.get(ad.get('item_id'), '')
+
             return Response({
                 'requested_campaign': campaign_identifier,
                 'resolved_campaign_id': resolved_campaign_id,
                 'total': ads_data.get('paging', {}).get('total', 0),
-                'results': ads_data.get('results', [])
+                'results': ads_results
             }, status=status.HTTP_200_OK)
 
         except http_requests.exceptions.RequestException as e:
