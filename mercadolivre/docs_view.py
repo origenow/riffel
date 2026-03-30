@@ -184,6 +184,7 @@ DOCS_HTML = """<!DOCTYPE html>
 
   <div class="nav-section">Anúncios</div>
   <a class="nav-item" href="#productads"><span class="badge badge-get">GET</span> /productads</a>
+  <a class="nav-item" href="#campaign-ads"><span class="badge badge-get">GET</span> /productads/campaigns/{id}/ads</a>
 
   <div class="nav-section">Token</div>
   <a class="nav-item" href="#token-status"><span class="badge badge-get">GET</span> /token/status</a>
@@ -528,6 +529,58 @@ GET /productads?period=90 → últimos 90 dias</pre>
     </div>
   </div>
 
+  <div class="endpoint" id="ep-campaign-ads" style="margin-top:12px">
+    <div class="endpoint-header" onclick="toggle('ep-campaign-ads')">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/productads/campaigns/{id}/ads</span>
+      <span class="endpoint-summary">Anúncios de uma campanha</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="endpoint-body">
+      <div class="endpoint-body-inner">
+        <p class="desc">Retorna todos os anúncios (items) vinculados a uma campanha específica de Product Ads. Permite consultar dinamicamente passando o <strong style="color:var(--accent-light)">ID numérico</strong> ou o <strong style="color:var(--accent-light)">Nome Exato</strong> da campanha.</p>
+
+        <div class="params-title">Path Parameters</div>
+        <table>
+          <tr><th>Nome</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr>
+          <tr>
+            <td><code>campaign_identifier</code></td>
+            <td>string/int</td>
+            <td><span class="required">sim</span></td>
+            <td>ID numérico gerado pelo ML (recomendado) ou Nome da campanha.</td>
+          </tr>
+        </table>
+
+        <div class="params-title">Exemplos de uso</div>
+        <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>GET /productads/campaigns/12345/ads    → Busca via ID (1 requisição ao ML)
+GET /productads/campaigns/Black Friday/ads → Busca via Nome (resolve ID automático)</pre>
+
+        <br/>
+        <div class="response-block">
+          <div class="params-title">Resposta</div>
+          <div class="res-header"><span class="status-badge s200">200 OK</span></div>
+          <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>{
+  "requested_campaign": "Black Friday",
+  "resolved_campaign_id": 1234567,
+  "total": 1,
+  "results": [
+    {
+      "id": "MLB123456789",
+      "status": "active",
+      "title": "Produto Exemplo com Desconto",
+      "price": 199.9,
+      "permalink": "https://produto.mercadolivre.com.br/...",
+      "picture_id": "848831-MLB..."
+    }
+  ]
+}</pre>
+          <div class="res-header" style="margin-top:12px"><span class="status-badge s404">404</span></div>
+          <pre>{ "error": "Campanha não encontrada com o nome: Campanha Errada. Verifique se é exatamente o mesmo nome." }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <hr class="divider"/>
 
   <!-- ═══════════════════════════ TOKEN ═══════════════════════════ -->
@@ -652,7 +705,7 @@ GET /productads?period=90 → últimos 90 dias</pre>
 
   // Highlight nav item on scroll
   const navItems = document.querySelectorAll('.nav-item');
-  const sections = ['me','myproducts','myproducts-sync','myorders','myorders-sync','productads','token-status','token-refresh','debug-env'];
+  const sections = ['me','myproducts','myproducts-sync','myorders','myorders-sync','productads','campaign-ads','token-status','token-refresh','debug-env'];
 
   window.addEventListener('scroll', () => {
     let current = '';

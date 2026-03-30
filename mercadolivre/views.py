@@ -505,3 +505,123 @@ class ProductAdsView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class CampaignAdsView(APIView):
+    """
+    GET /users/{user_id}/productads/campaigns/{campaign_identifier}/ads
+    Retorna os anúncios pertencentes a uma campanha, aceitando o ID ou o Nome da campanha.
+    """
+
+    def get(self, request, user_id, campaign_identifier):
+        try:
+            # Verifica se o usuário existe e pega o token
+            token_data = token_manager.get_token(user_id)
+            if not token_data:
+                return Response(
+                    {'error': f'Usuário {user_id} não encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            access_token = token_manager.ensure_valid_token(user_id)
+            if not access_token:
+                return Response(
+                    {'error': 'Nenhum token valido encontrado.'},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+
+            api_base = settings.ML_API_BASE
+
+            # ========== 1. Buscar advertiser ==========
+            headers_v1 = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json',
+                'Api-Version': '1',
+            }
+
+            resp_adv = http_requests.get(
+                f'{api_base}/advertising/advertisers',
+                headers=headers_v1,
+                params={'product_id': 'PADS'},
+                timeout=30,
+            )
+            resp_adv.raise_for_status()
+            adv_data = resp_adv.json()
+            advertisers = adv_data.get('advertisers', [])
+            if not advertisers:
+                return Response(
+                    {'error': 'Nenhum advertiser encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            advertiser_id = advertisers[0]['advertiser_id']
+            site_id = advertisers[0]['site_id']
+
+            headers_v2 = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json',
+                'api-version': '2',
+            }
+
+            # ========== 2. Resolver `campaign_identifier` ==========
+            resolved_campaign_id = campaign_identifier
+
+            # Se for string (nao contem so digitos), busca as campanhas para achar o id do nome
+            if not str(campaign_identifier).isdigit():
+                resp_campaigns = http_requests.get(
+                    f'{api_base}/advertising/{site_id}/advertisers/'
+                    f'{advertiser_id}/product_ads/campaigns/search',
+                    headers=headers_v2,
+                    params={'limit': 100, 'offset': 0},
+                    timeout=30,
+                )
+                resp_campaigns.raise_for_status()
+                campaigns = resp_campaigns.json().get('results', [])
+                
+                campaign_match = next((c for c in campaigns if c.get('name', '').lower() == str(campaign_identifier).lower()), None)
+                if not campaign_match:
+                    return Response(
+                        {'error': f'Campanha não encontrada com o nome: {campaign_identifier}. Verifique se é exatamente o mesmo nome.'},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                resolved_campaign_id = campaign_match['id']
+
+            # ========== 3. Buscar os anuncios da campanha ==========
+            resp_ads = http_requests.get(
+                f'{api_base}/advertising/{site_id}/advertisers/'
+                f'{advertiser_id}/product_ads/ads/search',
+                headers=headers_v2,
+                params={
+                    'campaign_id': resolved_campaign_id,
+                    'limit': 100,
+                    'offset': 0
+                },
+                timeout=30,
+            )
+            resp_ads.raise_for_status()
+            
+            ads_data = resp_ads.json()
+            
+            return Response({
+                'requested_campaign': campaign_identifier,
+                'resolved_campaign_id': resolved_campaign_id,
+                'total': ads_data.get('paging', {}).get('total', 0),
+                'results': ads_data.get('results', [])
+            }, status=status.HTTP_200_OK)
+
+        except http_requests.exceptions.RequestException as e:
+            logger.error(f'Erro na API do Mercado Livre (Ads list): {e}')
+            error_detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                error_detail = e.response.text
+            return Response(
+                {'error': error_detail},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        except Exception as e:
+            logger.error(f'Erro na rota de ads da ampanha: {e}')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+

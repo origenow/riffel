@@ -4,7 +4,7 @@ from .views import (
     MeView, TokenStatusView, RefreshTokenView,
     MyProductsView, SyncProductsView,
     MyOrdersView, SyncOrdersView,
-    ProductAdsView, DebugEnvView,
+    ProductAdsView, DebugEnvView, CampaignAdsView,
 )
 from .auth_views import AuthLoginView, AuthCallbackView
 from .user_views import UsersListView, UserDetailView, UserDeleteView
@@ -30,6 +30,7 @@ urlpatterns = [
     path('users/<int:user_id>/myorders', MyOrdersView.as_view(), name='user-myorders'),
     path('users/<int:user_id>/myorders/sync', SyncOrdersView.as_view(), name='user-myorders-sync'),
     path('users/<int:user_id>/productads', ProductAdsView.as_view(), name='user-productads'),
+    path('users/<int:user_id>/productads/campaigns/<str:campaign_identifier>/ads', CampaignAdsView.as_view(), name='user-campaign-ads'),
     path('users/<int:user_id>/token/status', TokenStatusView.as_view(), name='user-token-status'),
     path('users/<int:user_id>/token/refresh', RefreshTokenView.as_view(), name='user-token-refresh'),
     
