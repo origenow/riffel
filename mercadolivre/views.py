@@ -615,39 +615,46 @@ class CampaignAdsView(APIView):
 
             item_data_map = {}
             if item_ids:
-                # ML suporta até 20 itens por request em /items
-                chunk_size = 20
-                for i in range(0, len(item_ids), chunk_size):
-                    chunk = item_ids[i:i + chunk_size]
-                    resp_items = http_requests.get(
-                        f'{api_base}/items',
-                        headers={'Authorization': f'Bearer {access_token}'},
-                        params={'ids': ','.join(chunk), 'attributes': 'id,price,original_price,thumbnail,pictures'},
-                        timeout=30,
-                    )
-                    if resp_items.status_code == 200:
-                        for entry in resp_items.json():
-                            if entry.get('code') == 200:
-                                body = entry.get('body', {})
-                                item_id = body.get('id')
-                                pictures = body.get('pictures', [])
-                                if pictures:
-                                    image_url = pictures[0].get('url', body.get('thumbnail', ''))
-                                else:
-                                    image_url = body.get('thumbnail', '')
-                                if item_id:
-                                    item_data_map[item_id] = {
-                                        'image': image_url,
-                                        'price': body.get('price'),
-                                        'original_price': body.get('original_price'),
-                                    }
+                try:
+                    from .supabase_client import get_supabase_client
+                    sb = get_supabase_client()
+                    
+                    # Buscar produtos cacheados em lotes para evitar payload gigante na query
+                    chunk_size = 100
+                    for i in range(0, len(item_ids), chunk_size):
+                        chunk = item_ids[i:i + chunk_size]
+                        resp = sb.table('mercadolivre_products') \
+                                 .select('item_id, titulo, preco, foto, permalink') \
+                                 .eq('user_id', user_id) \
+                                 .in_('item_id', chunk) \
+                                 .execute()
+                        
+                        if resp.data:
+                            for row in resp.data:
+                                item_data_map[row['item_id']] = {
+                                    'image': row.get('foto') or '',
+                                    'price': float(row.get('preco')) if row.get('preco') is not None else None,
+                                    'original_price': None, # Cachê atual não possui preço original
+                                    'title': row.get('titulo') or '',
+                                    'permalink': row.get('permalink') or '',
+                                }
+                except Exception as db_err:
+                    logger.warning(f"Erro ao buscar itens no banco para a campanha, fallback vazio: {db_err}")
 
             # Enriquece cada anúncio com imagem e preço correto do item
             for ad in ads_results:
                 item_data = item_data_map.get(ad.get('item_id'), {})
-                ad['image'] = item_data.get('image', '')
-                ad['price'] = item_data.get('price')
+                
+                # Tratar fallback do próprio objeto ad do Ads API (tem thumbnail, price, title)
+                ad['image'] = item_data.get('image') or ad.get('thumbnail', '')
+                ad['price'] = item_data.get('price') or ad.get('price')
                 ad['original_price'] = item_data.get('original_price')
+                
+                # Garante que o titulo e o permalink do DB sobrescrevam se existirem
+                if item_data.get('title'):
+                    ad['title'] = item_data.get('title')
+                if item_data.get('permalink'):
+                    ad['permalink'] = item_data.get('permalink')
 
             return Response({
                 'requested_campaign': campaign_identifier,
