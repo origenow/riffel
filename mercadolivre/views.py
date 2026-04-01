@@ -587,22 +587,32 @@ class CampaignAdsView(APIView):
                 resolved_campaign_id = campaign_match['id']
 
             # ========== 3. Buscar os anúncios da campanha ==========
-            # Usando o endpoint modernizado e corrigindo os filtros
-            # A nova sintaxe de filtros utiliza filters[nome]=valor
+            # Simulando o comportamento exato do Lighthouse para evitar URL encoding de '[' e ']' pelo pacote requests
+            period_days = int(request.query_params.get('period', 30))
+            date_to_dt = datetime.today()
+            date_from_dt = date_to_dt - timedelta(days=period_days)
+            date_from_str = date_from_dt.strftime('%Y-%m-%d')
+            date_to_str = date_to_dt.strftime('%Y-%m-%d')
+
             metrics_ads = (
                 'clicks,prints,cost,units_quantity,'
                 'direct_amount,indirect_amount,total_amount,roas'
             )
+            
+            # Construindo a URL sem o dict de params para não encodar `filters[campaign_id]`
+            url_ads = (
+                f'{api_base}/advertising/{site_id}/advertisers/{advertiser_id}/product_ads/ads/search'
+                f'?filters[campaign_id]={resolved_campaign_id}'
+                f'&date_from={date_from_str}'
+                f'&date_to={date_to_str}'
+                f'&metrics={metrics_ads}'
+                f'&limit=100'
+                f'&offset=0'
+            )
+            
             resp_ads = http_requests.get(
-                f'{api_base}/advertising/{site_id}/advertisers/'
-                f'{advertiser_id}/product_ads/ads/search',
+                url_ads,
                 headers=headers_v2,
-                params={
-                    'filters[campaign_id]': resolved_campaign_id,
-                    'metrics': metrics_ads,
-                    'limit': 100,
-                    'offset': 0
-                },
                 timeout=30,
             )
             resp_ads.raise_for_status()
