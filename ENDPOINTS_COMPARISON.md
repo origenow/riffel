@@ -3,9 +3,9 @@
 ## 📊 Resumo das Mudanças
 
 - **Endpoints Removidos:** 8
-- **Endpoints Novos:** 11
+- **Endpoints Novos:** 12
 - **Endpoints Mantidos:** 2 (utilitários)
-- **Total Atual:** 13 endpoints
+- **Total Atual:** 14 endpoints
 
 ---
 
@@ -300,7 +300,7 @@ curl https://riffel.onrender.com/auth/login
 
 #### `GET /users/{user_id}/productads?period=30`
 **Antes:** `GET /productads?period=30`  
-**Descrição:** Métricas de Product Ads por período  
+**Descrição:** Métricas de Product Ads por período (Atualizado para v2 e métricas ROAS)  
 **Parâmetros:**
 - `user_id` (path, obrigatório) - ID do usuário
 - `period` (query, opcional) - Período em dias: 7, 15, 30, 60, 90 (padrão: 30)
@@ -319,9 +319,10 @@ curl https://riffel.onrender.com/auth/login
   },
   "campaigns": [
     {
-      "id": "123456",
+      "id": 355189450,
       "name": "Campanha Tênis",
       "status": "active",
+      "roas_target": 2.0,
       "metrics": {
         "clicks": 320,
         "prints": 15000,
@@ -329,6 +330,36 @@ curl https://riffel.onrender.com/auth/login
         "units_quantity": 32,
         "total_amount": 2980.00,
         "roas": 7.09
+      }
+    }
+  ]
+}
+```
+
+#### `GET /users/{user_id}/productads/campaigns/{campaign_id}/ads` (NOVO)
+**Descrição:** Lista todos os anúncios (produtos) de uma campanha específica  
+**Parâmetros:**
+- `user_id` (path, obrigatório) - ID do usuário
+- `campaign_id` (path, obrigatório) - ID ou Nome da campanha
+
+**Resposta (200):**
+```json
+{
+  "requested_campaign": "Campanha Tênis",
+  "resolved_campaign_id": 355189450,
+  "total": 42,
+  "results": [
+    {
+      "item_id": "MLB3456789012",
+      "ad_group_id": 1105406861,
+      "title": "Tenis Esportivo Running Pro",
+      "price": 199.90,
+      "status": "active",
+      "image": "https://http2.mlstatic.com/D_NQ_NP_...",
+      "metrics": {
+          "clicks": 15,
+          "total_amount": 399.80,
+          "roas": 5.2
       }
     }
   ]

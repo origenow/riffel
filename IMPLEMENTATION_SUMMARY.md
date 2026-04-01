@@ -37,7 +37,8 @@ Sistema completo de autenticação OAuth2 para múltiplas contas do Mercado Livr
    - ✅ `SyncProductsView` - Agora aceita `user_id` no path
    - ✅ `MyOrdersView` - Agora aceita `user_id` no path
    - ✅ `SyncOrdersView` - Agora aceita `user_id` no path
-   - ✅ `ProductAdsView` - Agora aceita `user_id` no path
+   - ✅ `ProductAdsView` - Atualizado para v2, suporte a ROAS e URLs modernizadas
+   - ✅ `CampaignAdsView` - NOVO: Listagem de anúncios de uma campanha com Ad Group ID e métricas v2
 
 3. **`mercadolivre/urls.py`**
    - ✅ Adicionadas rotas OAuth2: `/auth/login`, `/auth/callback`
@@ -127,7 +128,7 @@ GET    /users/{user_id}
 DELETE /users/{user_id}/delete
 ```
 
-#### Endpoints por Usuário (8 modificados)
+#### Endpoints por Usuário (9 modificados/novos)
 ```
 GET  /users/{user_id}/me
 GET  /users/{user_id}/myproducts
@@ -135,6 +136,7 @@ POST /users/{user_id}/myproducts/sync
 GET  /users/{user_id}/myorders
 POST /users/{user_id}/myorders/sync
 GET  /users/{user_id}/productads
+GET  /users/{user_id}/productads/campaigns/{id}/ads
 GET  /users/{user_id}/token/status
 POST /users/{user_id}/token/refresh
 ```

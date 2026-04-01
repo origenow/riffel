@@ -168,29 +168,24 @@ DOCS_HTML = """<!DOCTYPE html>
 <aside class="sidebar">
   <div class="sidebar-logo">
     <div class="logo-text">Riffel <span>API</span></div>
-    <div class="version">v1.0.0</div>
-  </div>
+  <div class="nav-section">Autenticação</div>
+  <a class="nav-item" href="#auth-login"><span class="badge badge-get">GET</span> /auth/login</a>
+  <a class="nav-item" href="#auth-callback"><span class="badge badge-get">GET</span> /auth/callback</a>
 
-  <div class="nav-section">Conta</div>
-  <a class="nav-item active" href="#me"><span class="badge badge-get">GET</span> /me</a>
+  <div class="nav-section">Usuários</div>
+  <a class="nav-item" href="#users-list"><span class="badge badge-get">GET</span> /users</a>
+  <a class="nav-item" href="#user-detail"><span class="badge badge-get">GET</span> /users/{user_id}</a>
+  <a class="nav-item" href="#user-delete"><span class="badge badge-del">DEL</span> /users/{user_id}/delete</a>
 
-  <div class="nav-section">Produtos</div>
-  <a class="nav-item" href="#myproducts"><span class="badge badge-get">GET</span> /myproducts</a>
-  <a class="nav-item" href="#myproducts-sync"><span class="badge badge-post">POST</span> /myproducts/sync</a>
+  <div class="nav-section">Dados (por Usuário)</div>
+  <a class="nav-item active" href="#me"><span class="badge badge-get">GET</span> /users/{id}/me</a>
+  <a class="nav-item" href="#myproducts"><span class="badge badge-get">GET</span> /users/{id}/myproducts</a>
+  <a class="nav-item" href="#myorders"><span class="badge badge-get">GET</span> /users/{id}/myorders</a>
+  <a class="nav-item" href="#productads"><span class="badge badge-get">GET</span> /users/{id}/productads</a>
+  <a class="nav-item" href="#campaign-ads"><span class="badge badge-get">GET</span> /users/{id}/.../ads</a>
 
-  <div class="nav-section">Pedidos</div>
-  <a class="nav-item" href="#myorders"><span class="badge badge-get">GET</span> /myorders</a>
-  <a class="nav-item" href="#myorders-sync"><span class="badge badge-post">POST</span> /myorders/sync</a>
-
-  <div class="nav-section">Anúncios</div>
-  <a class="nav-item" href="#productads"><span class="badge badge-get">GET</span> /productads</a>
-  <a class="nav-item" href="#campaign-ads"><span class="badge badge-get">GET</span> /productads/campaigns/{id}/ads</a>
-
-  <div class="nav-section">Token</div>
+  <div class="nav-section">Util</div>
   <a class="nav-item" href="#token-status"><span class="badge badge-get">GET</span> /token/status</a>
-  <a class="nav-item" href="#token-refresh"><span class="badge badge-post">POST</span> /token/refresh</a>
-
-  <div class="nav-section">Utilitários</div>
   <a class="nav-item" href="#debug-env"><span class="badge badge-get">GET</span> /debug/env</a>
 </aside>
 
@@ -199,9 +194,8 @@ DOCS_HTML = """<!DOCTYPE html>
 
   <!-- PAGE HEADER -->
   <div class="page-header">
-    <h1>Riffel API</h1>
-    <p>API Django + DRF integrada ao Mercado Livre e Supabase.<br/>
-    Autenticação via token armazenado no Supabase — refresh automático a cada requisição.</p>
+    <h1>Riffel API <span style="font-size: 1rem; color: var(--accent-light);">v2.0.0</span></h1>
+    <p>API Django integrada ao Mercado Livre com suporte a <strong>múltiplas contas</strong> e autenticação OAuth2 automática.</p>
     <div class="base-url-box">
       <span class="label">Base URL</span>
       <code id="base-url">https://riffel.onrender.com</code>
@@ -209,53 +203,85 @@ DOCS_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- AUTH -->
+  <!-- AUTH BOX -->
   <div class="auth-box">
-    🔑 <strong>Autenticação:</strong> Todas as rotas usam o token Mercado Livre armazenado no <strong>Supabase</strong>.
-    Não é necessário passar o token manualmente — a API busca e renova automaticamente.
-    Use <code style="font-family:monospace;background:rgba(0,0,0,.3);padding:2px 6px;border-radius:4px">/token/refresh</code> para forçar um refresh manual.
+    🔐 <strong>Arquitetura Multi-Usuário:</strong> A API armazena tokens de múltiplos usuários no Supabase. 
+    Para endpoints de dados, o <code>user_id</code> do Mercado Livre é <strong>obrigatório</strong> na URL.
+    Use o fluxo de <strong>Autenticação</strong> abaixo para conectar novas contas.
   </div>
 
-  <!-- ═══════════════════════════ CONTA ═══════════════════════════ -->
-  <div class="section-title" id="me">Conta</div>
+  <!-- ═══════════════════════════ AUTENTICAÇÃO ═══════════════════════════ -->
+  <div class="section-title" id="auth-login">Autenticação OAuth2</div>
 
-  <div class="endpoint" id="ep-me">
-    <div class="endpoint-header" onclick="toggle('ep-me')">
+  <div class="endpoint" id="ep-auth-login">
+    <div class="endpoint-header" onclick="toggle('ep-auth-login')">
       <span class="method method-get">GET</span>
-      <span class="endpoint-path">/me</span>
-      <span class="endpoint-summary">Dados da conta Mercado Livre</span>
+      <span class="endpoint-path">/auth/login</span>
+      <span class="endpoint-summary">Inicia conexão com Mercado Livre</span>
       <span class="chevron">▼</span>
     </div>
     <div class="endpoint-body">
       <div class="endpoint-body-inner">
-        <p class="desc">Retorna os dados da conta autenticada no Mercado Livre: nome, email, CNPJ formatado, endereço, reputação, nível Mercado Líder, entre outros.</p>
+        <p class="desc">Redireciona o usuário para a página de autorização do Mercado Livre. Após autorizar, o ML redirecionará de volta para o callback da API.</p>
+        <div class="res-header"><span class="status-badge s200">302 Redirect</span></div>
+        <pre>Location: https://auth.mercadolivre.com.br/authorization?client_id=...</pre>
+      </div>
+    </div>
+  </div>
 
-        <div class="params-title">Parâmetros</div>
-        <p style="color:var(--text-muted);font-size:.84rem">Nenhum parâmetro necessário.</p>
-
-        <br/>
+  <div class="endpoint" id="ep-users-list" style="margin-top:12px">
+    <div class="endpoint-header" onclick="toggle('ep-users-list')">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/users</span>
+      <span class="endpoint-summary">Lista todas as contas conectadas</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="endpoint-body">
+      <div class="endpoint-body-inner">
+        <p class="desc">Retorna a lista de todos os usuários que já realizaram o login e possuem tokens ativos no sistema.</p>
         <div class="response-block">
-          <div class="params-title">Resposta</div>
           <div class="res-header"><span class="status-badge s200">200 OK</span></div>
-          <pre><button class="copy-pre" onclick="copyPre(this)">Copiar</button>{
-  "id": 533863251,
-  "nickname": "RIFFEL2024",
-  "data_de_registro": "2020-03-15T10:22:00.000-03:00",
-  "primeiro_nome": "João",
-  "email": "joao@riffel.com.br",
-  "cnpj": "12.345.678/0001-99",
-  "endereco": "Rua das Flores, 100",
-  "cidade": "São Paulo",
-  "estado": "SP",
-  "cep": "01310-100",
-  "permalink_perfil": "https://perfil.mercadolivre.com.br/RIFFEL2024",
-  "nivel_reputacao": "5_green",
-  "nivel_mercado_lider": "gold",
-  "mercadoenvios": "accepted",
-  "nome_marca": "Riffel",
-  "foto_perfil": "https://http2.mlstatic.com/D_NQ_NP_...",
-  "numero_telefone": "+5511999999999"
+          <pre>{
+  "total": 1,
+  "users": [
+    {
+      "user_id": 533863251,
+      "nickname": "RIFFEL2024",
+      "email": "joao@riffel.com.br",
+      "updated_at": "2026-03-20T14:00:00Z"
+    }
+  ]
 }</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ═══════════════════════════ DADOS ═══════════════════════════ -->
+  <div class="section-title" id="me">Dados da Conta</div>
+
+  <div class="endpoint" id="ep-me">
+    <div class="endpoint-header" onclick="toggle('ep-me')">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/users/{user_id}/me</span>
+      <span class="endpoint-summary">Perfil do usuário</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="endpoint-body">
+      <div class="endpoint-body-inner">
+        <p class="desc">Retorna os dados detalhados da conta ML do usuário: reputação, endereço e CNPJ formatado.</p>
+
+        <div class="params-title">Path Parameters</div>
+        <table>
+          <tr><th>Nome</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr>
+          <tr><td><code>user_id</code></td><td>integer</td><td><span class="required">sim</span></td><td>ID numérico do usuário no Mercado Livre.</td></tr>
+        </table>
+
+        <div class="response-block">
+          <div class="res-header"><span class="status-badge s200">200 OK</span></div>
+          <pre>{ "nickname": "RIFFEL2024", "email": "joao@... " }</pre>
         </div>
       </div>
     </div>
@@ -269,16 +295,19 @@ DOCS_HTML = """<!DOCTYPE html>
   <div class="endpoint" id="ep-myproducts">
     <div class="endpoint-header" onclick="toggle('ep-myproducts')">
       <span class="method method-get">GET</span>
-      <span class="endpoint-path">/myproducts</span>
-      <span class="endpoint-summary">Lista todos os produtos do seller</span>
+      <span class="endpoint-path">/users/{user_id}/myproducts</span>
+      <span class="endpoint-summary">Produtos sincronizados</span>
       <span class="chevron">▼</span>
     </div>
     <div class="endpoint-body">
       <div class="endpoint-body-inner">
-        <p class="desc">Retorna os produtos do <strong style="color:var(--accent-light)">cache Supabase</strong> (atualizado automaticamente a cada 1 hora em background). Zero chamadas ao ML API nesta rota = <strong style="color:var(--get)">uso mínimo de RAM</strong>. Se o cache estiver vazio, executa um sync imediato na primeira chamada.</p>
+        <p class="desc">Retorna os produtos do <strong>cache Supabase</strong> (atualizado a cada 1h). Se o cache estiver vazio, executa um sync imediato automático.</p>
 
-        <div class="params-title">Parâmetros</div>
-        <p style="color:var(--text-muted);font-size:.84rem">Nenhum parâmetro necessário.</p>
+        <div class="params-title">Path Parameters</div>
+        <table>
+          <tr><th>Nome</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr>
+          <tr><td><code>user_id</code></td><td>integer</td><td><span class="required">sim</span></td><td>ID do usuário.</td></tr>
+        </table>
 
         <br/>
         <div class="response-block">
@@ -327,8 +356,8 @@ DOCS_HTML = """<!DOCTYPE html>
   <div class="endpoint" id="ep-myproducts-sync" style="margin-top:12px">
     <div class="endpoint-header" onclick="toggle('ep-myproducts-sync')">
       <span class="method method-post">POST</span>
-      <span class="endpoint-path">/myproducts/sync</span>
-      <span class="endpoint-summary">Força sync imediato dos produtos</span>
+      <span class="endpoint-path">/users/{user_id}/myproducts/sync</span>
+      <span class="endpoint-summary">Força atualização do cache</span>
       <span class="chevron">&#9660;</span>
     </div>
     <div class="endpoint-body">
@@ -359,8 +388,8 @@ DOCS_HTML = """<!DOCTYPE html>
   <div class="endpoint" id="ep-myorders">
     <div class="endpoint-header" onclick="toggle('ep-myorders')">
       <span class="method method-get">GET</span>
-      <span class="endpoint-path">/myorders</span>
-      <span class="endpoint-summary">Streaming de todos os pedidos</span>
+      <span class="endpoint-path">/users/{user_id}/myorders</span>
+      <span class="endpoint-summary">Histórico de vendas</span>
       <span class="chevron">▼</span>
     </div>
     <div class="endpoint-body">
@@ -462,13 +491,13 @@ DOCS_HTML = """<!DOCTYPE html>
   <hr class="divider"/>
 
   <!-- ═══════════════════════════ PRODUCT ADS ═══════════════════════════ -->
-  <div class="section-title" id="productads">Anúncios (Product Ads)</div>
+  <div class="section-title" id="productads">Publicidade (Product Ads)</div>
 
   <div class="endpoint" id="ep-productads">
     <div class="endpoint-header" onclick="toggle('ep-productads')">
       <span class="method method-get">GET</span>
-      <span class="endpoint-path">/productads</span>
-      <span class="endpoint-summary">Métricas de Product Ads por período</span>
+      <span class="endpoint-path">/users/{user_id}/productads</span>
+      <span class="endpoint-summary">Métricas de campanhas (ROAS v2)</span>
       <span class="chevron">▼</span>
     </div>
     <div class="endpoint-body">
@@ -532,8 +561,8 @@ GET /productads?period=90 → últimos 90 dias</pre>
   <div class="endpoint" id="ep-campaign-ads" style="margin-top:12px">
     <div class="endpoint-header" onclick="toggle('ep-campaign-ads')">
       <span class="method method-get">GET</span>
-      <span class="endpoint-path">/productads/campaigns/{id}/ads</span>
-      <span class="endpoint-summary">Anúncios de uma campanha</span>
+      <span class="endpoint-path">/users/{user_id}/productads/campaigns/{id}/ads</span>
+      <span class="endpoint-summary">Anúncios de uma campanha (v2)</span>
       <span class="chevron">▼</span>
     </div>
     <div class="endpoint-body">
@@ -543,11 +572,12 @@ GET /productads?period=90 → últimos 90 dias</pre>
         <div class="params-title">Path Parameters</div>
         <table>
           <tr><th>Nome</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr>
+          <tr><td><code>user_id</code></td><td>integer</td><td><span class="required">sim</span></td><td>ID do usuário.</td></tr>
           <tr>
             <td><code>campaign_identifier</code></td>
             <td>string/int</td>
             <td><span class="required">sim</span></td>
-            <td>ID numérico gerado pelo ML (recomendado) ou Nome da campanha.</td>
+            <td>ID ou Nome da campanha.</td>
           </tr>
         </table>
 
@@ -567,13 +597,12 @@ GET /productads/campaigns/Black Friday/ads → Busca via Nome (resolve ID autom�
     {
       "id": "MLB123456789",
       "item_id": "MLB123456789",
+      "ad_group_id": 1105406861,
       "status": "active",
-      "title": "Produto Exemplo com Desconto",
+      "title": "Produto Exemplo",
       "price": 179.9,
-      "original_price": 199.9,
-      "permalink": "https://produto.mercadolivre.com.br/...",
-      "picture_id": "848831-MLB...",
-      "image": "https://http2.mlstatic.com/D_NQ_NP_848831-MLB123456789_012024-O.webp"
+      "image": "...",
+      "metrics": { "clicks": 15, "roas": 5.2 }
     }
   ]
 }</pre>
@@ -592,8 +621,8 @@ GET /productads/campaigns/Black Friday/ads → Busca via Nome (resolve ID autom�
   <div class="endpoint" id="ep-token-status">
     <div class="endpoint-header" onclick="toggle('ep-token-status')">
       <span class="method method-get">GET</span>
-      <span class="endpoint-path">/token/status</span>
-      <span class="endpoint-summary">Status do token armazenado</span>
+      <span class="endpoint-path">/users/{user_id}/token/status</span>
+      <span class="endpoint-summary">Status do OAuth2</span>
       <span class="chevron">▼</span>
     </div>
     <div class="endpoint-body">

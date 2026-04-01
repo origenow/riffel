@@ -566,7 +566,7 @@ class CampaignAdsView(APIView):
             # ========== 2. Resolver `campaign_identifier` ==========
             resolved_campaign_id = campaign_identifier
 
-            # Se for string (nao contem so digitos), busca as campanhas para achar o id do nome
+            # Se for string (não contém só dígitos), busca as campanhas para achar o id do nome
             if not str(campaign_identifier).isdigit():
                 resp_campaigns = http_requests.get(
                     f'{api_base}/advertising/{site_id}/advertisers/'
@@ -586,13 +586,20 @@ class CampaignAdsView(APIView):
                     )
                 resolved_campaign_id = campaign_match['id']
 
-            # ========== 3. Buscar os anuncios da campanha ==========
+            # ========== 3. Buscar os anúncios da campanha ==========
+            # Usando o endpoint modernizado e corrigindo os filtros
+            # A nova sintaxe de filtros utiliza filters[nome]=valor
+            metrics_ads = (
+                'clicks,prints,cost,units_quantity,'
+                'direct_amount,indirect_amount,total_amount,roas'
+            )
             resp_ads = http_requests.get(
                 f'{api_base}/advertising/{site_id}/advertisers/'
                 f'{advertiser_id}/product_ads/ads/search',
                 headers=headers_v2,
                 params={
-                    'campaign_id': resolved_campaign_id,
+                    'filters[campaign_id]': resolved_campaign_id,
+                    'metrics': metrics_ads,
                     'limit': 100,
                     'offset': 0
                 },
@@ -601,17 +608,7 @@ class CampaignAdsView(APIView):
             resp_ads.raise_for_status()
 
             ads_data = resp_ads.json()
-
-            # Deduplicar anúncios pelo item_id (mantém o primeiro de cada)
-            seen_item_ids = set()
-            ads_results = []
-            for ad in ads_data.get('results', []):
-                iid = ad.get('item_id')
-                if iid and iid not in seen_item_ids:
-                    seen_item_ids.add(iid)
-                    ads_results.append(ad)
-                elif not iid:
-                    ads_results.append(ad)
+            ads_results = ads_data.get('results', [])
 
             # ========== 4. Enriquecer anúncios com imagens dos produtos ==========
             item_ids = list({ad['item_id'] for ad in ads_results if ad.get('item_id')})
