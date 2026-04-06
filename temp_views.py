@@ -1,4 +1,4 @@
-"""
+﻿"""
 Views da API do Mercado Livre.
 """
 
@@ -32,17 +32,17 @@ def formatar_cnpj(cnpj: str) -> str:
 class MeView(APIView):
     """
     GET /users/{user_id}/me
-    Retorna os dados da conta do Mercado Livre do usuário autenticado.
-    Faz refresh automático do token se necessário.
+    Retorna os dados da conta do Mercado Livre do usu├írio autenticado.
+    Faz refresh autom├ítico do token se necess├írio.
     """
 
     def get(self, request, user_id):
         try:
-            # Verifica se o usuário existe
+            # Verifica se o usu├írio existe
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -70,7 +70,6 @@ class MeView(APIView):
                 'nickname': user_data.get('nickname'),
                 'data_de_registro': user_data.get('registration_date'),
                 'primeiro_nome': user_data.get('first_name'),
-                'last_name': user_data.get('last_name'),
                 'email': user_data.get('email'),
                 'cnpj': formatar_cnpj(cnpj_numero),
                 'endereco': address_data.get('address'),
@@ -84,7 +83,6 @@ class MeView(APIView):
                 'nome_marca': company_data.get('brand_name'),
                 'foto_perfil': thumbnail_data.get('picture_url'),
                 'numero_telefone': telefone,
-                'seller_reputation': seller_rep,  # Incluindo objeto completo para métricas e transações
             }
             
             return Response(response_data, status=status.HTTP_200_OK)
@@ -107,7 +105,7 @@ class TokenStatusView(APIView):
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -130,7 +128,7 @@ class TokenStatusView(APIView):
 class RefreshTokenView(APIView):
     """
     POST /users/{user_id}/token/refresh
-    Força um refresh do token manualmente.
+    For├ºa um refresh do token manualmente.
     """
 
     def post(self, request, user_id):
@@ -138,7 +136,7 @@ class RefreshTokenView(APIView):
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -161,16 +159,16 @@ class MyProductsView(APIView):
     """
     GET /users/{user_id}/myproducts
     Retorna os produtos do cache Supabase (atualizado a cada 1h em background).
-    Muito mais leve — zero chamadas ao ML API nesta rota.
+    Muito mais leve ÔÇö zero chamadas ao ML API nesta rota.
     """
 
     def get(self, request, user_id):
         try:
-            # Verifica se o usuário existe
+            # Verifica se o usu├írio existe
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -178,9 +176,9 @@ class MyProductsView(APIView):
 
             result = get_cached_products(user_id)
 
-            # Se o cache está vazio, faz um sync imediato
+            # Se o cache est├í vazio, faz um sync imediato
             if result['total_produtos'] == 0:
-                logger.info(f'Cache vazio — executando sync imediato para user_id={user_id}...')
+                logger.info(f'Cache vazio ÔÇö executando sync imediato para user_id={user_id}...')
                 run_sync(user_id)
                 result = get_cached_products(user_id)
 
@@ -209,11 +207,11 @@ class SyncProductsView(APIView):
 
     def post(self, request, user_id):
         try:
-            # Verifica se o usuário existe
+            # Verifica se o usu├írio existe
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -242,11 +240,11 @@ class MyOrdersView(APIView):
 
     def get(self, request, user_id):
         try:
-            # Verifica se o usuário existe
+            # Verifica se o usu├írio existe
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -254,9 +252,9 @@ class MyOrdersView(APIView):
 
             result = get_cached_orders(user_id)
 
-            # Se o cache está vazio, faz um sync imediato
+            # Se o cache est├í vazio, faz um sync imediato
             if not result.get('vendas_detalhadas'):
-                logger.info(f'Cache de pedidos vazio — executando sync imediato para user_id={user_id}...')
+                logger.info(f'Cache de pedidos vazio ÔÇö executando sync imediato para user_id={user_id}...')
                 run_orders_sync(user_id)
                 result = get_cached_orders(user_id)
 
@@ -285,11 +283,11 @@ class SyncOrdersView(APIView):
 
     def post(self, request, user_id):
         try:
-            # Verifica se o usuário existe
+            # Verifica se o usu├írio existe
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -375,11 +373,11 @@ class ProductAdsView(APIView):
 
     def get(self, request, user_id):
         try:
-            # Verifica se o usuário existe
+            # Verifica se o usu├írio existe
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
             
@@ -512,16 +510,16 @@ class ProductAdsView(APIView):
 class CampaignAdsView(APIView):
     """
     GET /users/{user_id}/productads/campaigns/{campaign_identifier}/ads
-    Retorna os anúncios pertencentes a uma campanha, aceitando o ID ou o Nome da campanha.
+    Retorna os an├║ncios pertencentes a uma campanha, aceitando o ID ou o Nome da campanha.
     """
 
     def get(self, request, user_id, campaign_identifier):
         try:
-            # Verifica se o usuário existe e pega o token
+            # Verifica se o usu├írio existe e pega o token
             token_data = token_manager.get_token(user_id)
             if not token_data:
                 return Response(
-                    {'error': f'Usuário {user_id} não encontrado.'},
+                    {'error': f'Usu├írio {user_id} n├úo encontrado.'},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
@@ -568,7 +566,7 @@ class CampaignAdsView(APIView):
             # ========== 2. Resolver `campaign_identifier` ==========
             resolved_campaign_id = campaign_identifier
 
-            # Se for string (não contém só dígitos), busca as campanhas para achar o id do nome
+            # Se for string (n├úo cont├®m s├│ d├¡gitos), busca as campanhas para achar o id do nome
             if not str(campaign_identifier).isdigit():
                 resp_campaigns = http_requests.get(
                     f'{api_base}/advertising/{site_id}/advertisers/'
@@ -583,38 +581,33 @@ class CampaignAdsView(APIView):
                 campaign_match = next((c for c in campaigns if c.get('name', '').lower() == str(campaign_identifier).lower()), None)
                 if not campaign_match:
                     return Response(
-                        {'error': f'Campanha não encontrada com o nome: {campaign_identifier}. Verifique se é exatamente o mesmo nome.'},
+                        {'error': f'Campanha n├úo encontrada com o nome: {campaign_identifier}. Verifique se ├® exatamente o mesmo nome.'},
                         status=status.HTTP_404_NOT_FOUND,
                     )
                 resolved_campaign_id = campaign_match['id']
 
-            # ========== 3. Buscar os anúncios da campanha ==========
-            # Simulando o comportamento exato do Lighthouse para evitar URL encoding de '[' e ']' pelo pacote requests
+            # ========== 3. Buscar os an├║ncios da campanha ==========
+            # A API do Mercado Livre exige date_from e date_to quando metrics est├úo sendo solicitadas.
             period_days = int(request.query_params.get('period', 30))
             date_to_dt = datetime.today()
             date_from_dt = date_to_dt - timedelta(days=period_days)
-            date_from_str = date_from_dt.strftime('%Y-%m-%d')
-            date_to_str = date_to_dt.strftime('%Y-%m-%d')
-
+            
             metrics_ads = (
                 'clicks,prints,cost,units_quantity,'
                 'direct_amount,indirect_amount,total_amount,roas'
             )
-            
-            # Construindo a URL sem o dict de params para não encodar `filters[campaign_id]`
-            url_ads = (
-                f'{api_base}/advertising/{site_id}/advertisers/{advertiser_id}/product_ads/ads/search'
-                f'?filters[campaign_id]={resolved_campaign_id}'
-                f'&date_from={date_from_str}'
-                f'&date_to={date_to_str}'
-                f'&metrics={metrics_ads}'
-                f'&limit=100'
-                f'&offset=0'
-            )
-            
             resp_ads = http_requests.get(
-                url_ads,
+                f'{api_base}/advertising/{site_id}/advertisers/'
+                f'{advertiser_id}/product_ads/ads/search',
                 headers=headers_v2,
+                params={
+                    'filters[campaign_id]': resolved_campaign_id,
+                    'metrics': metrics_ads,
+                    'date_from': date_from_dt.strftime('%Y-%m-%d'),
+                    'date_to': date_to_dt.strftime('%Y-%m-%d'),
+                    'limit': 100,
+                    'offset': 0
+                },
                 timeout=30,
             )
             resp_ads.raise_for_status()
@@ -622,7 +615,7 @@ class CampaignAdsView(APIView):
             ads_data = resp_ads.json()
             ads_results = ads_data.get('results', [])
 
-            # ========== 4. Enriquecer anúncios com imagens dos produtos ==========
+            # ========== 4. Enriquecer an├║ncios com imagens dos produtos ==========
             item_ids = list({ad['item_id'] for ad in ads_results if ad.get('item_id')})
 
             item_data_map = {}
@@ -646,18 +639,18 @@ class CampaignAdsView(APIView):
                                 item_data_map[row['item_id']] = {
                                     'image': row.get('foto') or '',
                                     'price': float(row.get('preco')) if row.get('preco') is not None else None,
-                                    'original_price': None, # Cachê atual não possui preço original
+                                    'original_price': None, # Cach├¬ atual n├úo possui pre├ºo original
                                     'title': row.get('titulo') or '',
                                     'permalink': row.get('permalink') or '',
                                 }
                 except Exception as db_err:
                     logger.warning(f"Erro ao buscar itens no banco para a campanha, fallback vazio: {db_err}")
 
-            # Enriquece cada anúncio com imagem e preço correto do item
+            # Enriquece cada an├║ncio com imagem e pre├ºo correto do item
             for ad in ads_results:
                 item_data = item_data_map.get(ad.get('item_id'), {})
                 
-                # Tratar fallback do próprio objeto ad do Ads API (tem thumbnail, price, title)
+                # Tratar fallback do pr├│prio objeto ad do Ads API (tem thumbnail, price, title)
                 ad['image'] = item_data.get('image') or ad.get('thumbnail', '')
                 ad['price'] = item_data.get('price') or ad.get('price')
                 ad['original_price'] = item_data.get('original_price')
