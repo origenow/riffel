@@ -403,8 +403,11 @@ def run_orders_sync(user_id: int):
 
 
 # ─── leitura do cache ──────────────────────────────────────────────
-def get_cached_orders(user_id: int) -> dict:
-    """Le os pedidos do cache no Supabase. Formato identico ao meli_vendas_detalhadas.json."""
+def get_cached_orders(user_id: int, period_days: int = None) -> dict:
+    """Le os pedidos do cache no Supabase. Formato identico ao meli_vendas_detalhadas.json.
+
+    Se period_days for informado, filtra apenas pedidos dos últimos N dias.
+    """
     sb = get_supabase_client()
 
     # Busca todas as linhas de orders do user_id
@@ -413,8 +416,17 @@ def get_cached_orders(user_id: int) -> dict:
     page = 0
     page_size = 1000
 
+    # Calcula data de corte se period_days informado
+    date_from = None
+    if period_days:
+        from datetime import timedelta
+        date_from = (datetime.now(timezone.utc) - timedelta(days=period_days)).isoformat()
+
     while True:
-        result = sb.table(ORDERS_TABLE).select('*').eq('user_id', user_id).range(
+        query = sb.table(ORDERS_TABLE).select('*').eq('user_id', user_id)
+        if date_from:
+            query = query.gte('date_created', date_from)
+        result = query.range(
             page * page_size, (page + 1) * page_size - 1
         ).execute()
 
@@ -444,22 +456,45 @@ def get_cached_orders(user_id: int) -> dict:
             "discount_total_order": float(row['discount_total_order']) if row['discount_total_order'] is not None else 0,
         })
 
-    # Busca resumo do user_id
-    summary_result = sb.table(SUMMARY_TABLE).select('*').eq('user_id', user_id).limit(1).execute()
-    resumo = {}
-    if summary_result.data:
-        s = summary_result.data[0]
+    if period_days:
+        # Calcula resumo a partir das linhas filtradas (agrega por order_id)
+        order_totals: dict = {}
+        for row in all_rows:
+            oid = row['order_id']
+            if oid not in order_totals:
+                order_totals[oid] = {
+                    "gross": float(row['gross_items_order']) if row['gross_items_order'] is not None else 0,
+                    "fee": float(row['marketplace_fee_order']) if row['marketplace_fee_order'] is not None else 0,
+                    "shipping": float(row['seller_shipping_cost']) if row['seller_shipping_cost'] is not None else 0,
+                    "discount": float(row['discount_total_order']) if row['discount_total_order'] is not None else 0,
+                    "net": float(row['net_order_simplified']) if row['net_order_simplified'] is not None else 0,
+                }
         resumo = {
-            "bruto_total": float(s['bruto_total']) if s['bruto_total'] is not None else 0,
-            "taxas_total": float(s['taxas_total']) if s['taxas_total'] is not None else 0,
-            "frete_seller_total": float(s['frete_seller_total']) if s['frete_seller_total'] is not None else 0,
-            "descontos_total": float(s['descontos_total']) if s['descontos_total'] is not None else 0,
-            "liquido_total": float(s['liquido_total']) if s['liquido_total'] is not None else 0,
+            "bruto_total": round(sum(o["gross"] for o in order_totals.values()), 2),
+            "taxas_total": round(sum(o["fee"] for o in order_totals.values()), 2),
+            "frete_seller_total": round(sum(o["shipping"] for o in order_totals.values()), 2),
+            "descontos_total": round(sum(o["discount"] for o in order_totals.values()), 2),
+            "liquido_total": round(sum(o["net"] for o in order_totals.values()), 2),
         }
+        total_pedidos = len(order_totals)
+    else:
+        # Busca resumo pré-computado do user_id (todos os pedidos)
+        summary_result = sb.table(SUMMARY_TABLE).select('*').eq('user_id', user_id).limit(1).execute()
+        resumo = {}
+        if summary_result.data:
+            s = summary_result.data[0]
+            resumo = {
+                "bruto_total": float(s['bruto_total']) if s['bruto_total'] is not None else 0,
+                "taxas_total": float(s['taxas_total']) if s['taxas_total'] is not None else 0,
+                "frete_seller_total": float(s['frete_seller_total']) if s['frete_seller_total'] is not None else 0,
+                "descontos_total": float(s['descontos_total']) if s['descontos_total'] is not None else 0,
+                "liquido_total": float(s['liquido_total']) if s['liquido_total'] is not None else 0,
+            }
+        total_pedidos = summary_result.data[0]['total_pedidos'] if summary_result.data else 0
 
     return {
         "vendas_detalhadas": vendas,
-        "total_pedidos": summary_result.data[0]['total_pedidos'] if summary_result.data else 0,
+        "total_pedidos": total_pedidos,
         "total_linhas": len(vendas),
         "resumo": resumo,
     }

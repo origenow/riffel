@@ -248,13 +248,25 @@ class MyOrdersView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-            logger.info(f'Buscando pedidos do cache Supabase para user_id={user_id}...')
+            # Período opcional via ?period=30
+            ALLOWED_PERIODS = [7, 15, 30, 60, 90]
+            period_param = request.query_params.get('period')
+            period_days = None
+            if period_param:
+                try:
+                    period_days = int(period_param)
+                    if period_days not in ALLOWED_PERIODS:
+                        period_days = 30
+                except (ValueError, TypeError):
+                    period_days = None
 
-            result = get_cached_orders(user_id)
+            logger.info(f'Buscando pedidos do cache Supabase para user_id={user_id} period={period_days}...')
 
-            # Se o cache est├í vazio, faz um sync imediato
-            if not result.get('vendas_detalhadas'):
-                logger.info(f'Cache de pedidos vazio ÔÇö executando sync imediato para user_id={user_id}...')
+            result = get_cached_orders(user_id, period_days=period_days)
+
+            # Se o cache está vazio e não há filtro de período, faz sync imediato
+            if not result.get('vendas_detalhadas') and not period_days:
+                logger.info(f'Cache de pedidos vazio — executando sync imediato para user_id={user_id}...')
                 run_orders_sync(user_id)
                 result = get_cached_orders(user_id)
 
